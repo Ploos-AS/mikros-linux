@@ -41,7 +41,7 @@ make -C "$WORK/busybox" ARCH=x86 CROSS_COMPILE=i586-linux-musl- CONFIG_PREFIX="$
 # Overlay distribution-owned rootfs files.
 cp -a rootfs/. "$ROOT/"
 chmod +x "$ROOT/etc/init.d/rcS"
-mkdir -p "$ROOT"/{dev,proc,sys,run,tmp,root,etc/mikros}
+mkdir -p "$ROOT/dev" "$ROOT/proc" "$ROOT/sys" "$ROOT/run" "$ROOT/tmp" "$ROOT/root" "$ROOT/etc/mikros"
 printf 'MikrOS Linux x86-i586 %s\n' "$PROFILE" > "$ROOT/etc/mikros/release"
 
 # Kernel: i386_defconfig is only the seed; MikrOS minimum policy overrides it.

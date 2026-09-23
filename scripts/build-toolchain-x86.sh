@@ -20,7 +20,7 @@ cat > "$BUILD/config.mak" <<EOF
 TARGET = i486-linux-musl
 OUTPUT = $PREFIX_ABS
 MUSL_VER = 1.2.5
-LINUX_VER = 6.12.58
+LINUX_VER = 6.15.7
 COMMON_CONFIG += --disable-nls
 COMMON_CONFIG += CFLAGS="-g0 -Os" CXXFLAGS="-g0 -Os"
 GCC_CONFIG += --with-arch=pentium --with-tune=generic
@@ -29,6 +29,20 @@ EOF
 
 make -C "$BUILD" -j"$JOBS"
 make -C "$BUILD" install
+
+# The compiler bootstrap uses a musl-cross-make-supported UAPI snapshot.
+# Replace those installed headers with MikrOS' pinned kernel UAPI so target
+# userspace is built against the same 6.12.58 baseline as the qualified kernel.
+LINUX_SRC="sources/linux-6.12.58.tar.xz"
+LINUX_HDR="$OUT/linux-headers"
+SYSROOT="$PREFIX_ABS/i486-linux-musl"
+test -f "$LINUX_SRC" || { echo "missing $LINUX_SRC" >&2; exit 1; }
+rm -rf "$LINUX_HDR"
+mkdir -p "$LINUX_HDR"
+tar -xJf "$LINUX_SRC" -C "$LINUX_HDR" --strip-components=1
+rm -rf "$SYSROOT/include/linux" "$SYSROOT/include/asm" "$SYSROOT/include/asm-generic"
+make -C "$LINUX_HDR" ARCH=x86 headers_install INSTALL_HDR_PATH="$SYSROOT"
+test -f "$SYSROOT/include/linux/kd.h" || { echo "MikrOS pinned UAPI install failed" >&2; exit 1; }
 
 # MikrOS names the qualified platform x86-i586. Keep that stable while the
 # canonical GNU target tuple remains i486-linux-musl; GCC itself is configured

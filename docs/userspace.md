@@ -1,39 +1,36 @@
 # Userspace and libc policy
 
-MikrOS Linux optimizes for the oldest practical maintained Linux targets. A single libc is desirable, but not at the cost of dropping an otherwise viable architecture.
+MikrOS Linux optimizes for the oldest practical maintained Linux targets.
 
-## Default strategy
+## Mandatory libc policy
 
-### musl — preferred default
+> **Use musl where the target is supported. Use uClibc-ng where necessary to preserve an older or more constrained target.**
 
-Use musl wherever the architecture is supported and the selected CPU baseline can be qualified.
+Hardware support takes priority over libc uniformity. MikrOS must not raise a CPU/platform minimum merely to force musl onto every architecture.
 
-Reasons:
+### musl — default
 
-- small and simple runtime;
-- static linking is practical;
-- strong fit with the Alpine-inspired MikrOS philosophy;
-- actively maintained.
+musl is the standard MikrOS Linux libc wherever the architecture and selected minimum CPU/ABI can be qualified.
 
-### uClibc-ng — compatibility libc
+### uClibc-ng — legacy/constrained backend
 
-Use uClibc-ng where it materially extends support for constrained/legacy Linux architectures that cannot use the preferred musl profile.
+uClibc-ng is the standard fallback when musl does not support the architecture or when musl would force MikrOS to abandon an otherwise maintainable minimum platform.
 
-This is a deliberate compatibility backend, not a second default.
+This is intentional architecture support, not a lower-quality edition of MikrOS.
 
-### glibc — exception path
+### glibc
 
-glibc may be used for a machine/profile that requires it, but is not the preferred MikrOS base because minimum footprint is a core project goal.
+glibc is not a standard MikrOS base libc. It may be used only for exceptional compatibility/research profiles that cannot reasonably use musl or uClibc-ng.
 
 ## Initial architecture matrix
 
-| Architecture | Preferred | Compatibility/research | M0 note |
-| --- | --- | --- | --- |
-| x86 i586 | musl | uClibc-ng | qualify i586 compiler/runtime |
-| ARMv4T + MMU | musl research | uClibc-ng | verify exact musl CPU/ABI floor before Tier 1 |
-| m68k 020+MMU | uClibc-ng research | glibc where needed | musl does not provide an upstream m68k port |
-| PowerPC 32 | musl | uClibc-ng | qualify classic and embedded baselines separately |
-| NOMMU targets | uClibc-ng research | architecture-specific | separate profile; do not constrain normal MMU userspace |
+| Architecture | MikrOS libc direction | M0 note |
+| --- | --- | --- |
+| x86 i586 | musl | qualify i586 compiler/runtime |
+| ARMv4T + MMU | musl if minimum survives; otherwise uClibc-ng | hardware floor wins |
+| m68k 020+MMU | uClibc-ng | upstream musl has no m68k port |
+| PowerPC 32 | musl | qualify classic and embedded baselines separately |
+| NOMMU targets | uClibc-ng where required | separate constrained profile |
 
 ## Base command environment
 
@@ -59,6 +56,6 @@ M0 should build and measure both where practical:
 
 The smaller *whole-system* result wins; individual executable size alone is not the metric.
 
-## Policy
+## Compatibility principle
 
-Architecture-specific libc choices are acceptable. MikrOS compatibility is defined by system behaviour and administration conventions, not by forcing every target to use the same C library.
+MikrOS compatibility is defined by system behaviour, filesystem conventions and administration interfaces. It is not defined by every architecture using the same C library.

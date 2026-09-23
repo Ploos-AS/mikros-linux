@@ -33,7 +33,6 @@ tar -xjf "$busybox_tar" -C "$WORK/busybox" --strip-components=1
 bb="$WORK/busybox/.config"
 cp configs/busybox/minimal.fragment "$bb"
 cat >> "$bb" <<'EOF'
-CONFIG_LFS=y
 CONFIG_CAT=y
 CONFIG_ECHO=y
 CONFIG_LS=y
@@ -61,7 +60,7 @@ awk '
 ' "$WORK/busybox/Config.in" "$WORK/busybox"/*/Config.in "$WORK/busybox"/*/*/Config.in 2>/dev/null >> "$bb" || true
 # Explicit seed must win over generated disables: remove disables for requested
 # symbols, then let oldconfig resolve dependencies.
-for s in STATIC ASH SH_IS_ASH INIT FEATURE_USE_INITTAB MOUNT UMOUNT DMESG HALT POWEROFF REBOOT GETTY MDEV LFS CAT ECHO LS CP MV RM MKDIR CHMOD CHOWN LN PS KILL SLEEP; do
+for s in STATIC ASH SH_IS_ASH INIT FEATURE_USE_INITTAB MOUNT UMOUNT DMESG HALT POWEROFF REBOOT GETTY MDEV CAT ECHO LS CP MV RM MKDIR CHMOD CHOWN LN PS KILL SLEEP; do
     sed -i "/^# CONFIG_$s is not set$/d" "$bb"
 done
 yes "" | make -C "$WORK/busybox" ARCH=x86 CROSS_COMPILE=i586-linux-musl- oldconfig >/dev/null || true
@@ -72,7 +71,7 @@ if grep -q '^CONFIG_TC=y$' "$bb"; then
     yes "" | make -C "$WORK/busybox" ARCH=x86 CROSS_COMPILE=i586-linux-musl- oldconfig >/dev/null || true
 fi
 grep -q '^# CONFIG_TC is not set$' "$bb" || die "BusyBox minimal unexpectedly enabled CONFIG_TC"
-for s in STATIC LFS ASH SH_IS_ASH INIT FEATURE_USE_INITTAB MOUNT UMOUNT DMESG HALT POWEROFF REBOOT GETTY MDEV CAT ECHO LS CP MV RM MKDIR CHMOD CHOWN LN PS KILL SLEEP; do
+for s in STATIC ASH SH_IS_ASH INIT FEATURE_USE_INITTAB MOUNT UMOUNT DMESG HALT POWEROFF REBOOT GETTY MDEV CAT ECHO LS CP MV RM MKDIR CHMOD CHOWN LN PS KILL SLEEP; do
     grep -q "^CONFIG_$s=y$" "$bb" || die "BusyBox config lost required CONFIG_$s"
 done
 make -C "$WORK/busybox" -j"$JOBS" ARCH=x86 CROSS_COMPILE=i586-linux-musl-

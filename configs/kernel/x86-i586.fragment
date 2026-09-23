@@ -1,0 +1,12 @@
+# MikrOS x86-i586 M0 kernel policy fragment.
+# A generated full .config will be committed only after qualification.
+CONFIG_M586=y
+CONFIG_X86_32=y
+CONFIG_DEVTMPFS=y
+CONFIG_DEVTMPFS_MOUNT=y
+CONFIG_PROC_FS=y
+CONFIG_SYSFS=y
+CONFIG_TMPFS=y
+CONFIG_EXT2_FS=y
+CONFIG_SERIAL_8250=y
+CONFIG_SERIAL_8250_CONSOLE=y

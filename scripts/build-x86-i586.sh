@@ -28,13 +28,29 @@ mkdir -p "$WORK/linux" "$WORK/busybox"
 tar -xJf "$linux_tar" -C "$WORK/linux" --strip-components=1
 tar -xjf "$busybox_tar" -C "$WORK/busybox" --strip-components=1
 
-# BusyBox: start from allnoconfig, then explicitly select the small M0 base.
+# BusyBox: deterministic minimal config. Start empty, append the policy
+# fragment plus the core applets needed by rcS/smoke tests, then let
+# olddefconfig resolve dependencies without interactive prompts.
 make -C "$WORK/busybox" ARCH=x86 CROSS_COMPILE=i586-linux-musl- allnoconfig
 bb="$WORK/busybox/.config"
-for s in STATIC ASH SH_IS_ASH INIT FEATURE_USE_INITTAB MOUNT UMOUNT DMESG HALT POWEROFF REBOOT GETTY MDEV CAT ECHO LS CP MV RM MKDIR CHMOD CHOWN LN PS KILL SLEEP; do
-    sed -i "s/^# CONFIG_$s is not set/CONFIG_$s=y/" "$bb"
-done
-yes "" | make -C "$WORK/busybox" ARCH=x86 CROSS_COMPILE=i586-linux-musl- oldconfig >/dev/null
+cat configs/busybox/minimal.fragment >> "$bb"
+cat >> "$bb" <<'EOF'
+CONFIG_LFS=y
+CONFIG_CAT=y
+CONFIG_ECHO=y
+CONFIG_LS=y
+CONFIG_CP=y
+CONFIG_MV=y
+CONFIG_RM=y
+CONFIG_MKDIR=y
+CONFIG_CHMOD=y
+CONFIG_CHOWN=y
+CONFIG_LN=y
+CONFIG_PS=y
+CONFIG_KILL=y
+CONFIG_SLEEP=y
+EOF
+make -C "$WORK/busybox" ARCH=x86 CROSS_COMPILE=i586-linux-musl- olddefconfig
 make -C "$WORK/busybox" -j"$JOBS" ARCH=x86 CROSS_COMPILE=i586-linux-musl-
 make -C "$WORK/busybox" ARCH=x86 CROSS_COMPILE=i586-linux-musl- CONFIG_PREFIX="$ROOT" install
 

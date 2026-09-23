@@ -34,7 +34,14 @@ LINUX_BUILD="$OUT/linux-headers"
 rm -rf "$LINUX_BUILD"
 mkdir -p "$LINUX_BUILD"
 tar -xJf "$LINUX_SRC" -C "$LINUX_BUILD" --strip-components=1
-make -C "$LINUX_BUILD" ARCH=x86 headers_install INSTALL_HDR_PATH="$SYSROOT/usr"
+# INSTALL_HDR_PATH itself receives an include/ directory, so point it at
+# $SYSROOT/usr (not $SYSROOT/usr/include).
+make -C "$LINUX_BUILD" ARCH=x86 headers_install INSTALL_HDR_PATH="$(cd "$SYSROOT" && pwd)/usr"
+test -f "$SYSROOT/usr/include/linux/kd.h" || {
+  echo "Linux UAPI headers missing from musl sysroot: $SYSROOT/usr/include/linux/kd.h" >&2
+  find "$SYSROOT/usr" -maxdepth 3 -type f -name kd.h -print >&2 || true
+  exit 1
+}
 
 SYSROOT_ABS=$(cd "$SYSROOT" && pwd)
 cat > "$WRAP/i586-linux-musl-gcc" <<EOF

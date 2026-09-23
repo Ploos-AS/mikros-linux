@@ -9,6 +9,7 @@ MikrOS Linux does not declare support solely because an architecture exists in t
 | m68k | Candidate | Oldest practical MMU-capable m68k baseline? |
 | ARM 32-bit | Candidate | Oldest practical ARM architecture/platform? |
 | x86 32-bit | Candidate | Minimum CPU generation? |
+| PowerPC 32-bit | Candidate | Oldest practical maintained classic/embedded PPC+MMU baseline? |
 
 ## Qualification requirements
 

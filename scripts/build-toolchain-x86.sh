@@ -25,6 +25,17 @@ tar -xzf "$MUSL_SRC" -C "$BUILD" --strip-components=1
   make AR=ar RANLIB=ranlib DESTDIR="$(cd ../sysroot && pwd)" install
 )
 
+# Install the Linux UAPI headers that userspace (including BusyBox)
+# legitimately includes. These come from the same pinned kernel source used
+# for the M0 target.
+LINUX_SRC="$SRC/linux-$LINUX_VERSION.tar.xz"
+LINUX_BUILD="$OUT/linux-headers"
+[ -f "$LINUX_SRC" ] || { echo "missing $LINUX_SRC; run scripts/fetch-sources.sh first" >&2; exit 1; }
+rm -rf "$LINUX_BUILD"
+mkdir -p "$LINUX_BUILD"
+tar -xJf "$LINUX_SRC" -C "$LINUX_BUILD" --strip-components=1
+make -C "$LINUX_BUILD" ARCH=x86 headers_install INSTALL_HDR_PATH="$SYSROOT/usr"
+
 SYSROOT_ABS=$(cd "$SYSROOT" && pwd)
 cat > "$WRAP/i586-linux-musl-gcc" <<EOF
 #!/bin/sh

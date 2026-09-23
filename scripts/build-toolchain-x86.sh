@@ -1,59 +1,46 @@
 #!/bin/sh
 set -eu
 
-. ./versions.conf
-
 OUT=${OUT:-out/toolchains/x86-i586}
-SYSROOT="$OUT/sysroot"
-WRAP="$OUT/bin"
-SRC=${SRC:-sources}
 JOBS=${JOBS:-2}
-MUSL_SRC="$SRC/musl-$MUSL_VERSION.tar.gz"
-BUILD="$OUT/build-musl"
+MCM_COMMIT=227df8b99103f9c59f6570babf892978e293082f
+BUILD="$OUT/musl-cross-make"
+PREFIX_ABS="$(pwd)/$OUT/cross"
 
-[ -f "$MUSL_SRC" ] || { echo "missing $MUSL_SRC; run scripts/fetch-sources.sh first" >&2; exit 1; }
-mkdir -p "$SYSROOT" "$WRAP"
-rm -rf "$BUILD"
-mkdir -p "$BUILD"
-tar -xzf "$MUSL_SRC" -C "$BUILD" --strip-components=1
+rm -rf "$BUILD" "$PREFIX_ABS"
+mkdir -p "$OUT"
 
-# Build a real i386 musl sysroot with an i586/Pentium ISA floor.
-(
-  cd "$BUILD"
-  CC="gcc -m32 -march=pentium" AR=ar RANLIB=ranlib ./configure --prefix=/usr --target=i386
-  make -j"$JOBS" AR=ar RANLIB=ranlib
-  make AR=ar RANLIB=ranlib DESTDIR="$(cd ../sysroot && pwd)" install
-)
+# Build a genuine GCC/binutils/musl cross-toolchain. The previous M0 bootstrap
+# wrapper around host gcc -m32 could mix host ABI assumptions with musl and is
+# deliberately retired.
+git clone -q https://github.com/richfelker/musl-cross-make.git "$BUILD"
+git -C "$BUILD" checkout -q "$MCM_COMMIT"
 
-# Install the Linux UAPI headers that userspace (including BusyBox)
-# legitimately includes. These come from the same pinned kernel source used
-# for the M0 target.
-LINUX_SRC="$SRC/linux-$LINUX_VERSION.tar.xz"
-LINUX_BUILD="$OUT/linux-headers"
-[ -f "$LINUX_SRC" ] || { echo "missing $LINUX_SRC; run scripts/fetch-sources.sh first" >&2; exit 1; }
-rm -rf "$LINUX_BUILD"
-mkdir -p "$LINUX_BUILD"
-tar -xJf "$LINUX_SRC" -C "$LINUX_BUILD" --strip-components=1
-# INSTALL_HDR_PATH itself receives an include/ directory, so point it at
-# $SYSROOT/usr (not $SYSROOT/usr/include).
-make -C "$LINUX_BUILD" ARCH=x86 headers_install INSTALL_HDR_PATH="$(cd "$SYSROOT" && pwd)/usr"
-test -f "$SYSROOT/usr/include/linux/kd.h" || {
-  echo "Linux UAPI headers missing from musl sysroot: $SYSROOT/usr/include/linux/kd.h" >&2
-  find "$SYSROOT/usr" -maxdepth 3 -type f -name kd.h -print >&2 || true
-  exit 1
-}
-
-SYSROOT_ABS=$(cd "$SYSROOT" && pwd)
-cat > "$WRAP/i586-linux-musl-gcc" <<EOF
-#!/bin/sh
-exec gcc -m32 -march=pentium --sysroot="$SYSROOT_ABS" -static "\$@"
+cat > "$BUILD/config.mak" <<EOF
+TARGET = i486-linux-musl
+OUTPUT = $PREFIX_ABS
+MUSL_VER = 1.2.5
+LINUX_VER = 6.12.58
+COMMON_CONFIG += --disable-nls
+COMMON_CONFIG += CFLAGS="-g0 -Os" CXXFLAGS="-g0 -Os"
+GCC_CONFIG += --with-arch=pentium --with-tune=generic
+GCC_CONFIG += --disable-libquadmath --disable-decimal-float --disable-libitm --disable-lto
 EOF
-chmod +x "$WRAP/i586-linux-musl-gcc"
 
-for t in ar as ld nm objcopy objdump ranlib readelf size strings strip; do
-  p=$(command -v "$t")
-  ln -sf "$p" "$WRAP/i586-linux-musl-$t"
+make -C "$BUILD" -j"$JOBS"
+make -C "$BUILD" install
+
+# MikrOS names the qualified platform x86-i586. Keep that stable while the
+# canonical GNU target tuple remains i486-linux-musl; GCC itself is configured
+# with a Pentium/i586 ISA floor above.
+mkdir -p "$OUT/bin"
+for p in "$PREFIX_ABS"/bin/i486-linux-musl-*; do
+    n=${p##*/}
+    n=${n#i486-linux-musl-}
+    ln -sf "../cross/bin/i486-linux-musl-$n" "$OUT/bin/i586-linux-musl-$n"
 done
 
-echo "M0 i586 musl sysroot prepared in $SYSROOT"
-"$WRAP/i586-linux-musl-gcc" --version | head -1
+test -x "$OUT/bin/i586-linux-musl-gcc"
+"$OUT/bin/i586-linux-musl-gcc" -dumpmachine
+"$OUT/bin/i586-linux-musl-gcc" -Q --help=target 2>/dev/null | grep -E 'march=.*pentium|march=.*i586' || true
+echo "M0 genuine i586 musl cross-toolchain prepared in $PREFIX_ABS"

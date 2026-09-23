@@ -28,12 +28,10 @@ mkdir -p "$WORK/linux" "$WORK/busybox"
 tar -xJf "$linux_tar" -C "$WORK/linux" --strip-components=1
 tar -xjf "$busybox_tar" -C "$WORK/busybox" --strip-components=1
 
-# BusyBox: deterministic minimal config. Start empty, append the policy
-# fragment plus the core applets needed by rcS/smoke tests, then let
-# olddefconfig resolve dependencies without interactive prompts.
-make -C "$WORK/busybox" ARCH=x86 CROSS_COMPILE=i586-linux-musl- allnoconfig
+# BusyBox: seed Kconfig directly from the MikrOS policy fragment instead of
+# appending duplicate assignments to an allnoconfig-generated .config.
 bb="$WORK/busybox/.config"
-cat configs/busybox/minimal.fragment >> "$bb"
+cp configs/busybox/minimal.fragment "$bb"
 cat >> "$bb" <<'EOF'
 CONFIG_LFS=y
 CONFIG_CAT=y
@@ -50,8 +48,8 @@ CONFIG_PS=y
 CONFIG_KILL=y
 CONFIG_SLEEP=y
 EOF
-# BusyBox 1.37 has no olddefconfig target. Feed defaults to oldconfig, then
-# verify the policy-critical settings before compiling.
+# BusyBox 1.37 has no olddefconfig target. oldconfig expands the seed and
+# defaults every unspecified symbol; yes exits on BusyBox's closed stdin.
 yes "" | make -C "$WORK/busybox" ARCH=x86 CROSS_COMPILE=i586-linux-musl- oldconfig >/dev/null || true
 for s in STATIC LFS ASH SH_IS_ASH INIT FEATURE_USE_INITTAB MOUNT UMOUNT DMESG HALT POWEROFF REBOOT GETTY MDEV CAT ECHO LS CP MV RM MKDIR CHMOD CHOWN LN PS KILL SLEEP; do
     grep -q "^CONFIG_$s=y$" "$bb" || die "BusyBox config lost required CONFIG_$s"

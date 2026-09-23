@@ -16,23 +16,12 @@ jobs:
       - name: Install host tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential curl xz-utils bzip2 cpio qemu-system-x86
+          sudo apt-get install -y build-essential gcc-multilib curl xz-utils bzip2 cpio qemu-system-x86
 
-      - name: Install musl cross compiler
+      - name: Prepare local i586 bootstrap toolchain
         run: |
-          curl -fL --retry 3 -o /tmp/musl-cross.tgz https://musl.cc/i486-linux-musl-cross.tgz
-          tar -xzf /tmp/musl-cross.tgz -C "$HOME"
-          echo "$HOME/i486-linux-musl-cross/bin" >> "$GITHUB_PATH"
-
-      - name: Provide i586-prefixed tool aliases
-        run: |
-          mkdir -p "$HOME/mikros-cross/bin"
-          for tool in gcc g++ ar as ld nm objcopy objdump ranlib readelf size strings strip; do
-            src="$(command -v i486-linux-musl-$tool || true)"
-            [ -n "$src" ] || continue
-            ln -s "$src" "$HOME/mikros-cross/bin/i586-linux-musl-$tool"
-          done
-          echo "$HOME/mikros-cross/bin" >> "$GITHUB_PATH"
+          ./scripts/build-toolchain-x86.sh
+          echo "$GITHUB_WORKSPACE/out/toolchains/x86-i586/bin" >> "$GITHUB_PATH"
 
       - name: Fetch pinned sources
         run: make fetch

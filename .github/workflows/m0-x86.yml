@@ -1,0 +1,52 @@
+name: M0 x86 qualification
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  x86-i586-minimal:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install host tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential curl xz-utils bzip2 cpio qemu-system-x86
+
+      - name: Install musl cross compiler
+        run: |
+          curl -fL --retry 3 -o /tmp/musl-cross.tgz https://musl.cc/i486-linux-musl-cross.tgz
+          tar -xzf /tmp/musl-cross.tgz -C "$HOME"
+          echo "$HOME/i486-linux-musl-cross/bin" >> "$GITHUB_PATH"
+
+      - name: Provide i586-prefixed tool aliases
+        run: |
+          mkdir -p "$HOME/mikros-cross/bin"
+          for tool in gcc g++ ar as ld nm objcopy objdump ranlib readelf size strings strip; do
+            src="$(command -v i486-linux-musl-$tool || true)"
+            [ -n "$src" ] || continue
+            ln -s "$src" "$HOME/mikros-cross/bin/i586-linux-musl-$tool"
+          done
+          echo "$HOME/mikros-cross/bin" >> "$GITHUB_PATH"
+
+      - name: Fetch pinned sources
+        run: make fetch
+
+      - name: Build and boot-test
+        run: make TARGET=x86-i586 PROFILE=minimal smoke
+
+      - name: Upload qualification logs and artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mikros-x86-i586-minimal
+          path: |
+            out/x86-i586/minimal/boot/
+            out/x86-i586/minimal/SHA256SUMS
+            out/x86-i586/minimal/qemu-smoke.log
+          if-no-files-found: warn

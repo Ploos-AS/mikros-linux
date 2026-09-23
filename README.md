@@ -15,7 +15,7 @@ It takes inspiration from Alpine Linux's minimalism and simplicity, with Debian-
 
 ## Initial architecture candidates
 
-M0 investigates m68k, 32-bit ARM and 32-bit x86. No CPU generation is supported until it passes MikrOS qualification.
+M0 investigates **m68k, 32-bit ARM, 32-bit x86 and 32-bit PowerPC**. No CPU generation is supported until it passes MikrOS qualification.
 
 ## Principles
 

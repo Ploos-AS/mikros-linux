@@ -18,13 +18,13 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential gcc-multilib curl xz-utils bzip2 cpio qemu-system-x86
 
-      - name: Prepare local i586 bootstrap toolchain
+      - name: Fetch pinned sources
+        run: sh ./scripts/fetch-sources.sh
+
+      - name: Build local i586 musl toolchain
         run: |
           sh ./scripts/build-toolchain-x86.sh
           echo "$GITHUB_WORKSPACE/out/toolchains/x86-i586/bin" >> "$GITHUB_PATH"
-
-      - name: Fetch pinned sources
-        run: sh ./scripts/fetch-sources.sh
 
       - name: Build and boot-test
         run: |

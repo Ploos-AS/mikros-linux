@@ -48,8 +48,22 @@ CONFIG_PS=y
 CONFIG_KILL=y
 CONFIG_SLEEP=y
 EOF
-# BusyBox 1.37 has no olddefconfig target. oldconfig expands the seed and
-# defaults every unspecified symbol; yes exits on BusyBox's closed stdin.
+# BusyBox oldconfig defaults many unspecified applets to enabled. Force every
+# unspecified CONFIG_* symbol off first, while preserving the explicit MikrOS
+# seed above. This keeps the minimal profile minimal and avoids accidentally
+# compiling unrelated applets such as networking/tc.
+awk '
+  /^config [A-Za-z0-9_]+$/ { sym=$2; next }
+  /^menuconfig [A-Za-z0-9_]+$/ { sym=$2; next }
+  /^[[:space:]]*(bool|tristate)([[:space:]]|$)/ {
+    if (sym != "") print "# CONFIG_" sym " is not set"
+  }
+' "$WORK/busybox/Config.in" "$WORK/busybox"/*/Config.in "$WORK/busybox"/*/*/Config.in 2>/dev/null >> "$bb" || true
+# Explicit seed must win over generated disables: remove disables for requested
+# symbols, then let oldconfig resolve dependencies.
+for s in STATIC ASH SH_IS_ASH INIT FEATURE_USE_INITTAB MOUNT UMOUNT DMESG HALT POWEROFF REBOOT GETTY MDEV LFS CAT ECHO LS CP MV RM MKDIR CHMOD CHOWN LN PS KILL SLEEP; do
+    sed -i "/^# CONFIG_$s is not set$/d" "$bb"
+done
 yes "" | make -C "$WORK/busybox" ARCH=x86 CROSS_COMPILE=i586-linux-musl- oldconfig >/dev/null || true
 for s in STATIC LFS ASH SH_IS_ASH INIT FEATURE_USE_INITTAB MOUNT UMOUNT DMESG HALT POWEROFF REBOOT GETTY MDEV CAT ECHO LS CP MV RM MKDIR CHMOD CHOWN LN PS KILL SLEEP; do
     grep -q "^CONFIG_$s=y$" "$bb" || die "BusyBox config lost required CONFIG_$s"

@@ -50,7 +50,12 @@ CONFIG_PS=y
 CONFIG_KILL=y
 CONFIG_SLEEP=y
 EOF
-make -C "$WORK/busybox" ARCH=x86 CROSS_COMPILE=i586-linux-musl- olddefconfig
+# BusyBox 1.37 has no olddefconfig target. Feed defaults to oldconfig, then
+# verify the policy-critical settings before compiling.
+yes "" | make -C "$WORK/busybox" ARCH=x86 CROSS_COMPILE=i586-linux-musl- oldconfig >/dev/null || true
+for s in STATIC LFS ASH SH_IS_ASH INIT FEATURE_USE_INITTAB MOUNT UMOUNT DMESG HALT POWEROFF REBOOT GETTY MDEV CAT ECHO LS CP MV RM MKDIR CHMOD CHOWN LN PS KILL SLEEP; do
+    grep -q "^CONFIG_$s=y$" "$bb" || die "BusyBox config lost required CONFIG_$s"
+done
 make -C "$WORK/busybox" -j"$JOBS" ARCH=x86 CROSS_COMPILE=i586-linux-musl-
 make -C "$WORK/busybox" ARCH=x86 CROSS_COMPILE=i586-linux-musl- CONFIG_PREFIX="$ROOT" install
 

@@ -28,49 +28,43 @@ mkdir -p "$WORK/linux" "$WORK/busybox"
 tar -xJf "$linux_tar" -C "$WORK/linux" --strip-components=1
 tar -xjf "$busybox_tar" -C "$WORK/busybox" --strip-components=1
 
-# BusyBox: seed Kconfig directly from the MikrOS policy fragment instead of
-# appending duplicate assignments to an allnoconfig-generated .config.
+# BusyBox: start from allnoconfig, then enable only the MikrOS policy.
+# BusyBox's CONFIG_LFS is obsolete on modern libc and forcing old-style LFS
+# assumptions makes off_t/uoff_t disagree on 32-bit musl.
+make -C "$WORK/busybox" ARCH=x86 CROSS_COMPILE=i586-linux-musl- allnoconfig >/dev/null
 bb="$WORK/busybox/.config"
-cp configs/busybox/minimal.fragment "$bb"
-cat >> "$bb" <<'EOF'
-CONFIG_CAT=y
-CONFIG_ECHO=y
-CONFIG_LS=y
-CONFIG_CP=y
-CONFIG_MV=y
-CONFIG_RM=y
-CONFIG_MKDIR=y
-CONFIG_CHMOD=y
-CONFIG_CHOWN=y
-CONFIG_LN=y
-CONFIG_PS=y
-CONFIG_KILL=y
-CONFIG_SLEEP=y
-EOF
-# BusyBox oldconfig defaults many unspecified applets to enabled. Force every
-# unspecified CONFIG_* symbol off first, while preserving the explicit MikrOS
-# seed above. This keeps the minimal profile minimal and avoids accidentally
-# compiling unrelated applets such as networking/tc.
-awk '
-  /^config [A-Za-z0-9_]+$/ { sym=$2; next }
-  /^menuconfig [A-Za-z0-9_]+$/ { sym=$2; next }
-  /^[[:space:]]*(bool|tristate)([[:space:]]|$)/ {
-    if (sym != "") print "# CONFIG_" sym " is not set"
-  }
-' "$WORK/busybox/Config.in" "$WORK/busybox"/*/Config.in "$WORK/busybox"/*/*/Config.in 2>/dev/null >> "$bb" || true
-# Explicit seed must win over generated disables: remove disables for requested
-# symbols, then let oldconfig resolve dependencies.
 for s in STATIC ASH SH_IS_ASH INIT FEATURE_USE_INITTAB MOUNT UMOUNT DMESG HALT POWEROFF REBOOT GETTY MDEV CAT ECHO LS CP MV RM MKDIR CHMOD CHOWN LN PS KILL SLEEP; do
-    sed -i "/^# CONFIG_$s is not set$/d" "$bb"
+    sed -i "s/^# CONFIG_$s is not set$/CONFIG_$s=y/" "$bb"
 done
 yes "" | make -C "$WORK/busybox" ARCH=x86 CROSS_COMPILE=i586-linux-musl- oldconfig >/dev/null || true
-# TC is outside the minimal profile and BusyBox 1.37's CBQ support is not
-# compatible with the pinned Linux UAPI. It must never be pulled in implicitly.
-if grep -q '^CONFIG_TC=y$' "$bb"; then
-    sed -i 's/^CONFIG_TC=y$/# CONFIG_TC is not set/' "$bb"
-    yes "" | make -C "$WORK/busybox" ARCH=x86 CROSS_COMPILE=i586-linux-musl- oldconfig >/dev/null || true
-fi
-grep -q '^# CONFIG_TC is not set$' "$bb" || die "BusyBox minimal unexpectedly enabled CONFIG_TC"
+grep -q '^# CONFIG_TC is not set
+make -C "$WORK/busybox" ARCH=x86 CROSS_COMPILE=i586-linux-musl- CONFIG_PREFIX="$ROOT" install
+
+# Overlay distribution-owned rootfs files.
+cp -a rootfs/. "$ROOT/"
+chmod +x "$ROOT/etc/init.d/rcS"
+mkdir -p "$ROOT/dev" "$ROOT/proc" "$ROOT/sys" "$ROOT/run" "$ROOT/tmp" "$ROOT/root" "$ROOT/etc/mikros"
+printf 'MikrOS Linux x86-i586 %s\n' "$PROFILE" > "$ROOT/etc/mikros/release"
+
+# Kernel: i386_defconfig is only the seed; MikrOS minimum policy overrides it.
+make -C "$WORK/linux" ARCH=x86 i386_defconfig
+. ./scripts/lib.sh
+apply_fragment "$WORK/linux" configs/kernel/x86-i586.fragment
+yes "" | make -C "$WORK/linux" ARCH=x86 oldconfig >/dev/null
+make -C "$WORK/linux" -j"$JOBS" ARCH=x86 CROSS_COMPILE=i586-linux-musl- bzImage
+
+mkdir -p "$OUT/boot"
+cp "$WORK/linux/arch/x86/boot/bzImage" "$OUT/boot/bzImage"
+
+# Deterministic-enough M0 initramfs staging. Full reproducibility is qualified later.
+(
+    cd "$ROOT"
+    find . -print | LC_ALL=C sort | cpio -o -H newc 2>/dev/null | gzip -9n
+) > "$OUT/boot/initramfs.cpio.gz"
+
+sha256sum "$OUT/boot/bzImage" "$OUT/boot/initramfs.cpio.gz" > "$OUT/SHA256SUMS"
+echo "built $OUT/boot/bzImage and initramfs.cpio.gz"
+ "$bb" || die "BusyBox minimal unexpectedly enabled CONFIG_TC"
 for s in STATIC ASH SH_IS_ASH INIT FEATURE_USE_INITTAB MOUNT UMOUNT DMESG HALT POWEROFF REBOOT GETTY MDEV CAT ECHO LS CP MV RM MKDIR CHMOD CHOWN LN PS KILL SLEEP; do
     grep -q "^CONFIG_$s=y$" "$bb" || die "BusyBox config lost required CONFIG_$s"
 done

@@ -21,7 +21,8 @@ TARGET = i486-linux-musl
 OUTPUT = $PREFIX_ABS
 MUSL_VER = 1.2.5
 LINUX_VER = 6.15.7
-DL_CMD = curl -fL --retry 5 --retry-delay 2 -o\nCOMMON_CONFIG += --disable-nls
+DL_CMD = curl -fL --retry 5 --retry-delay 2 -o
+COMMON_CONFIG += --disable-nls
 COMMON_CONFIG += CFLAGS="-g0 -Os" CXXFLAGS="-g0 -Os"
 GCC_CONFIG += --with-arch=pentium --with-tune=generic
 GCC_CONFIG += --disable-libquadmath --disable-decimal-float --disable-libitm --disable-lto

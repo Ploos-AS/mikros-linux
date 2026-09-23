@@ -20,14 +20,16 @@ jobs:
 
       - name: Prepare local i586 bootstrap toolchain
         run: |
-          ./scripts/build-toolchain-x86.sh
+          sh ./scripts/build-toolchain-x86.sh
           echo "$GITHUB_WORKSPACE/out/toolchains/x86-i586/bin" >> "$GITHUB_PATH"
 
       - name: Fetch pinned sources
-        run: make fetch
+        run: sh ./scripts/fetch-sources.sh
 
       - name: Build and boot-test
-        run: make TARGET=x86-i586 PROFILE=minimal smoke
+        run: |
+          sh ./scripts/build-x86-i586.sh minimal out/x86-i586/minimal
+          sh ./scripts/qemu-smoke-x86.sh out/x86-i586/minimal
 
       - name: Upload qualification logs and artifacts
         if: always()

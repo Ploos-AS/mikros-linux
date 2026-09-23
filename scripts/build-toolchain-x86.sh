@@ -13,8 +13,23 @@ mkdir -p "$OUT"
 # Build a genuine GCC/binutils/musl cross-toolchain. The previous M0 bootstrap
 # wrapper around host gcc -m32 could mix host ABI assumptions with musl and is
 # deliberately retired.
-git clone -q https://github.com/richfelker/musl-cross-make.git "$BUILD"
-git -C "$BUILD" checkout -q "$MCM_COMMIT"
+# GitHub/network failures should not make qualification randomly fail. Retry the
+# small source checkout and verify that the exact pinned commit was obtained.
+attempt=1
+while :; do
+    if git clone -q https://github.com/richfelker/musl-cross-make.git "$BUILD" &&
+       git -C "$BUILD" checkout -q "$MCM_COMMIT"; then
+        break
+    fi
+    rm -rf "$BUILD"
+    [ "$attempt" -lt 5 ] || { echo "failed to fetch pinned musl-cross-make after $attempt attempts" >&2; exit 1; }
+    sleep $((attempt * 3))
+    attempt=$((attempt + 1))
+done
+test "$(git -C "$BUILD" rev-parse HEAD)" = "$MCM_COMMIT" || {
+    echo "musl-cross-make pin verification failed" >&2
+    exit 1
+}
 
 cat > "$BUILD/config.mak" <<EOF
 TARGET = i486-linux-musl

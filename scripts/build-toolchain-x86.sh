@@ -20,9 +20,9 @@ tar -xzf "$MUSL_SRC" -C "$BUILD" --strip-components=1
 # Build a real i386 musl sysroot with an i586/Pentium ISA floor.
 (
   cd "$BUILD"
-  CC="gcc -m32 -march=pentium" ./configure --prefix=/usr --target=i386
-  make -j"$JOBS"
-  make DESTDIR="$(cd ../sysroot && pwd)" install
+  CC="gcc -m32 -march=pentium" AR=ar RANLIB=ranlib ./configure --prefix=/usr --target=i386
+  make -j"$JOBS" AR=ar RANLIB=ranlib
+  make AR=ar RANLIB=ranlib DESTDIR="$(cd ../sysroot && pwd)" install
 )
 
 SYSROOT_ABS=$(cd "$SYSROOT" && pwd)

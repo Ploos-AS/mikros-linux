@@ -41,7 +41,8 @@ grep -q '^# CONFIG_TC is not set$' "$bb" || die "BusyBox minimal unexpectedly en
 for s in STATIC ASH SH_IS_ASH INIT FEATURE_USE_INITTAB MOUNT UMOUNT DMESG HALT POWEROFF REBOOT GETTY MDEV CAT ECHO LS CP MV RM MKDIR CHMOD CHOWN LN PS KILL SLEEP; do
     grep -q "^CONFIG_$s=y$" "$bb" || die "BusyBox config lost required CONFIG_$s"
 done
-make -C "$WORK/busybox" -j"$JOBS" ARCH=x86 CROSS_COMPILE=i586-linux-musl-
+# Build verbosely in CI so compiler/linker failures remain visible in the job log.
+make -C "$WORK/busybox" -j"$JOBS" V=1 ARCH=x86 CROSS_COMPILE=i586-linux-musl-
 make -C "$WORK/busybox" ARCH=x86 CROSS_COMPILE=i586-linux-musl- CONFIG_PREFIX="$ROOT" install
 
 # Overlay distribution-owned rootfs files.
@@ -54,7 +55,9 @@ printf 'MikrOS Linux x86-i586 %s\n' "$PROFILE" > "$ROOT/etc/mikros/release"
 make -C "$WORK/linux" ARCH=x86 i386_defconfig
 apply_fragment "$WORK/linux" configs/kernel/x86-i586.fragment
 yes "" | make -C "$WORK/linux" ARCH=x86 oldconfig >/dev/null
-make -C "$WORK/linux" -j"$JOBS" ARCH=x86 CROSS_COMPILE=i586-linux-musl- bzImage
+# Kernel itself does not depend on musl, but the same cross prefix keeps host/target
+# separation explicit. V=1 makes the first failing command diagnosable in Actions.
+make -C "$WORK/linux" -j"$JOBS" V=1 ARCH=x86 CROSS_COMPILE=i586-linux-musl- bzImage
 
 mkdir -p "$OUT/boot"
 cp "$WORK/linux/arch/x86/boot/bzImage" "$OUT/boot/bzImage"

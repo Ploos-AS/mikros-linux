@@ -26,9 +26,14 @@ jobs:
           sh ./scripts/build-toolchain-x86.sh
           echo "$GITHUB_WORKSPACE/out/toolchains/x86-i586/bin" >> "$GITHUB_PATH"
 
-      - name: Build and boot-test
+      - name: Build x86-i586 image
         run: |
-          sh ./scripts/build-x86-i586.sh minimal out/x86-i586/minimal
+          set -o pipefail
+          mkdir -p out/x86-i586/minimal
+          sh ./scripts/build-x86-i586.sh minimal out/x86-i586/minimal 2>&1 | tee out/x86-i586/minimal/build.log
+
+      - name: Boot-test x86-i586 image
+        run: |
           sh ./scripts/qemu-smoke-x86.sh out/x86-i586/minimal
 
       - name: Upload qualification logs and artifacts
@@ -39,5 +44,6 @@ jobs:
           path: |
             out/x86-i586/minimal/boot/
             out/x86-i586/minimal/SHA256SUMS
+            out/x86-i586/minimal/build.log
             out/x86-i586/minimal/qemu-smoke.log
           if-no-files-found: warn

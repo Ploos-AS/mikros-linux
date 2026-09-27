@@ -17,6 +17,9 @@ apply_fragment() {
             CONFIG_*=*)
                 sym=${line%%=*}; val=${line#*=}
                 "$tree/scripts/config" --set-val "${sym#CONFIG_}" "$val" ;;
+            "# CONFIG_"*" is not set")
+                sym=${line#\# CONFIG_}; sym=${sym% is not set}
+                "$tree/scripts/config" --disable "$sym" ;;
         esac
     done < "$fragment"
 }

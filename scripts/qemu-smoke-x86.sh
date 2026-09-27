@@ -17,7 +17,7 @@ set +e
 timeout 20 qemu-system-i386 \
   -M pc -cpu pentium -m 32M \
   -kernel "$KERNEL" -initrd "$INITRD" \
-  -append "console=ttyS0 rdinit=/sbin/init" \
+  -append "earlyprintk=serial,ttyS0,115200 console=ttyS0,115200 rdinit=/sbin/init" \
   -nographic -no-reboot >"$log" 2>&1
 rc=$?
 set -e

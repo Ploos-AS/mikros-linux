@@ -2,6 +2,9 @@
 # A generated full .config will be committed only after qualification.
 CONFIG_M586=y
 CONFIG_X86_32=y
+# GCC plugins are host-build hardening helpers, not required by the target.
+# Avoid making the cross compiler's plugin headers impose host MPC headers.
+# CONFIG_GCC_PLUGINS is not set
 CONFIG_DEVTMPFS=y
 CONFIG_DEVTMPFS_MOUNT=y
 CONFIG_PROC_FS=y

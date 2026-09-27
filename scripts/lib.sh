@@ -11,15 +11,15 @@ apply_fragment() {
     while IFS= read -r line; do
         case "$line" in
             CONFIG_*=y)
-                sym=${line%%=*}; "$tree/scripts/config" --enable "${sym#CONFIG_}" ;;
+                sym=${line%%=*}; "$tree/scripts/config" --file "$tree/.config" --enable "${sym#CONFIG_}" ;;
             CONFIG_*=m)
-                sym=${line%%=*}; "$tree/scripts/config" --module "${sym#CONFIG_}" ;;
+                sym=${line%%=*}; "$tree/scripts/config" --file "$tree/.config" --module "${sym#CONFIG_}" ;;
             CONFIG_*=*)
                 sym=${line%%=*}; val=${line#*=}
-                "$tree/scripts/config" --set-val "${sym#CONFIG_}" "$val" ;;
+                "$tree/scripts/config" --file "$tree/.config" --set-val "${sym#CONFIG_}" "$val" ;;
             "# CONFIG_"*" is not set")
                 sym=${line#\# CONFIG_}; sym=${sym% is not set}
-                "$tree/scripts/config" --disable "$sym" ;;
+                "$tree/scripts/config" --file "$tree/.config" --disable "$sym" ;;
         esac
     done < "$fragment"
 }

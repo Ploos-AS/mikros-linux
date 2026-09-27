@@ -43,11 +43,9 @@ for s in STATIC LFS ASH SH_IS_ASH INIT FEATURE_USE_INITTAB MOUNT UMOUNT DMESG HA
     grep -q "^CONFIG_$s=y$" "$bb" || die "BusyBox config lost required CONFIG_$s"
 done
 
-# Build verbosely in CI so compiler/linker failures remain visible in the job log.
 make -C "$WORK/busybox" -j"$JOBS" V=1 ARCH=x86 CROSS_COMPILE=i586-linux-musl-
 make -C "$WORK/busybox" ARCH=x86 CROSS_COMPILE=i586-linux-musl- CONFIG_PREFIX="$ROOT" install
 
-# Overlay distribution-owned rootfs files.
 cp -a rootfs/. "$ROOT/"
 chmod +x "$ROOT/etc/init.d/rcS"
 mkdir -p "$ROOT/dev" "$ROOT/proc" "$ROOT/sys" "$ROOT/run" "$ROOT/tmp" "$ROOT/root" "$ROOT/etc/mikros"
@@ -58,11 +56,8 @@ make -C "$WORK/linux" ARCH=x86 i386_defconfig
 apply_fragment "$WORK/linux" configs/kernel/x86-i586.fragment
 yes "" | make -C "$WORK/linux" ARCH=x86 oldconfig >/dev/null
 
-# GCC_PLUGINS defaults to y when a cross-GCC exposes plugin headers. The local
-# musl cross toolchain intentionally does not provide host libmpc development
-# headers, so keep plugin-based hardening outside the minimal M0 baseline.
-# Apply this after oldconfig as well: hardening choices can otherwise select
-# structleak and pull GCC_PLUGINS back into the generated configuration.
+# Plugin-based GCC hardening is outside the minimal M0 baseline. Resolve the
+# full Kconfig first, then enforce this policy without another oldconfig pass.
 "$WORK/linux/scripts/config" --disable GCC_PLUGIN_STRUCTLEAK
 "$WORK/linux/scripts/config" --disable GCC_PLUGIN_STRUCTLEAK_USER
 "$WORK/linux/scripts/config" --disable GCC_PLUGIN_STRUCTLEAK_BYREF
@@ -70,51 +65,20 @@ yes "" | make -C "$WORK/linux" ARCH=x86 oldconfig >/dev/null
 "$WORK/linux/scripts/config" --disable GCC_PLUGIN_STACKLEAK
 "$WORK/linux/scripts/config" --enable INIT_STACK_NONE
 "$WORK/linux/scripts/config" --disable GCC_PLUGINS
-yes "" | make -C "$WORK/linux" ARCH=x86 oldconfig >/dev/null
 
-grep -q '^# CONFIG_GCC_PLUGINS is not set
-# separation explicit. V=1 makes the first failing command diagnosable in Actions.
-make -C "$WORK/linux" -j"$JOBS" V=1 ARCH=x86 CROSS_COMPILE=i586-linux-musl- bzImage
-
-mkdir -p "$OUT/boot"
-cp "$WORK/linux/arch/x86/boot/bzImage" "$OUT/boot/bzImage"
-
-# Deterministic-enough M0 initramfs staging. Full reproducibility is qualified later.
-(
-    cd "$ROOT"
-    find . -print | LC_ALL=C sort | cpio -o -H newc 2>/dev/null | gzip -9n
-) > "$OUT/boot/initramfs.cpio.gz"
-
-sha256sum "$OUT/boot/bzImage" "$OUT/boot/initramfs.cpio.gz" > "$OUT/SHA256SUMS"
-echo "built $OUT/boot/bzImage and initramfs.cpio.gz"
- "$WORK/linux/.config" ||
+grep -q '^# CONFIG_GCC_PLUGINS is not set$' "$WORK/linux/.config" ||
     die "kernel config unexpectedly enabled CONFIG_GCC_PLUGINS"
-grep -q '^# CONFIG_GCC_PLUGIN_STRUCTLEAK is not set
-# separation explicit. V=1 makes the first failing command diagnosable in Actions.
+if grep -Eq '^CONFIG_GCC_PLUGIN_STRUCTLEAK(_BYREF(_ALL)?|_USER)?=y$' "$WORK/linux/.config"; then
+    die "kernel config unexpectedly retained structleak hardening"
+fi
+
+# Kernel itself does not depend on musl, but the same cross prefix keeps
+# host/target separation explicit.
 make -C "$WORK/linux" -j"$JOBS" V=1 ARCH=x86 CROSS_COMPILE=i586-linux-musl- bzImage
 
 mkdir -p "$OUT/boot"
 cp "$WORK/linux/arch/x86/boot/bzImage" "$OUT/boot/bzImage"
 
-# Deterministic-enough M0 initramfs staging. Full reproducibility is qualified later.
-(
-    cd "$ROOT"
-    find . -print | LC_ALL=C sort | cpio -o -H newc 2>/dev/null | gzip -9n
-) > "$OUT/boot/initramfs.cpio.gz"
-
-sha256sum "$OUT/boot/bzImage" "$OUT/boot/initramfs.cpio.gz" > "$OUT/SHA256SUMS"
-echo "built $OUT/boot/bzImage and initramfs.cpio.gz"
- "$WORK/linux/.config" ||
-    die "kernel config unexpectedly enabled CONFIG_GCC_PLUGIN_STRUCTLEAK"
-
-# Kernel itself does not depend on musl, but the same cross prefix keeps host/target
-# separation explicit. V=1 makes the first failing command diagnosable in Actions.
-make -C "$WORK/linux" -j"$JOBS" V=1 ARCH=x86 CROSS_COMPILE=i586-linux-musl- bzImage
-
-mkdir -p "$OUT/boot"
-cp "$WORK/linux/arch/x86/boot/bzImage" "$OUT/boot/bzImage"
-
-# Deterministic-enough M0 initramfs staging. Full reproducibility is qualified later.
 (
     cd "$ROOT"
     find . -print | LC_ALL=C sort | cpio -o -H newc 2>/dev/null | gzip -9n

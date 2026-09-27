@@ -58,13 +58,13 @@ yes "" | make -C "$WORK/linux" ARCH=x86 oldconfig >/dev/null
 
 # Plugin-based GCC hardening is outside the minimal M0 baseline. Resolve the
 # full Kconfig first, then enforce this policy without another oldconfig pass.
-"$WORK/linux/scripts/config" --disable GCC_PLUGIN_STRUCTLEAK
-"$WORK/linux/scripts/config" --disable GCC_PLUGIN_STRUCTLEAK_USER
-"$WORK/linux/scripts/config" --disable GCC_PLUGIN_STRUCTLEAK_BYREF
-"$WORK/linux/scripts/config" --disable GCC_PLUGIN_STRUCTLEAK_BYREF_ALL
-"$WORK/linux/scripts/config" --disable GCC_PLUGIN_STACKLEAK
-"$WORK/linux/scripts/config" --enable INIT_STACK_NONE
-"$WORK/linux/scripts/config" --disable GCC_PLUGINS
+"$WORK/linux/scripts/config" --file "$WORK/linux/.config" --disable GCC_PLUGIN_STRUCTLEAK
+"$WORK/linux/scripts/config" --file "$WORK/linux/.config" --disable GCC_PLUGIN_STRUCTLEAK_USER
+"$WORK/linux/scripts/config" --file "$WORK/linux/.config" --disable GCC_PLUGIN_STRUCTLEAK_BYREF
+"$WORK/linux/scripts/config" --file "$WORK/linux/.config" --disable GCC_PLUGIN_STRUCTLEAK_BYREF_ALL
+"$WORK/linux/scripts/config" --file "$WORK/linux/.config" --disable GCC_PLUGIN_STACKLEAK
+"$WORK/linux/scripts/config" --file "$WORK/linux/.config" --enable INIT_STACK_NONE
+"$WORK/linux/scripts/config" --file "$WORK/linux/.config" --disable GCC_PLUGINS
 
 grep -q '^# CONFIG_GCC_PLUGINS is not set$' "$WORK/linux/.config" ||
     die "kernel config unexpectedly enabled CONFIG_GCC_PLUGINS"

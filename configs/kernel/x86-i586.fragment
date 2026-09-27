@@ -14,3 +14,6 @@ CONFIG_EXT2_FS=y
 CONFIG_SERIAL_8250=y
 CONFIG_SERIAL_8250_CONSOLE=y
 CONFIG_EARLY_PRINTK=y
+# Keep early serial diagnostics available during x86 M0 qualification.
+# CONFIG_EARLY_PRINTK_DBGP is not set
+CONFIG_DEBUG_KERNEL=y

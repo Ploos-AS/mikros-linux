@@ -48,10 +48,14 @@ printf 'MikrOS Linux x86-i586 %s\n' "$PROFILE" > "$ROOT/etc/mikros/release"
 
 make -C "$WORK/linux" ARCH=x86 i386_defconfig
 apply_fragment "$WORK/linux" configs/kernel/x86-i586.fragment
-yes "" | make -C "$WORK/linux" ARCH=x86 oldconfig >/dev/null
 
-# Enforce the minimal M0 hardening policy after Kconfig has resolved the CPU
-# choice. M586 itself is supplied by the fragment before oldconfig.
+# scripts/config changes a Kconfig choice in the seed .config. olddefconfig
+# then resolves dependencies without interactively replacing that choice.
+"$WORK/linux/scripts/config" --file "$WORK/linux/.config" --disable M686
+"$WORK/linux/scripts/config" --file "$WORK/linux/.config" --enable M586
+make -C "$WORK/linux" ARCH=x86 olddefconfig >/dev/null
+
+# Enforce the minimal M0 hardening policy after Kconfig has resolved the CPU.
 "$WORK/linux/scripts/config" --file "$WORK/linux/.config" --disable GCC_PLUGIN_STRUCTLEAK
 "$WORK/linux/scripts/config" --file "$WORK/linux/.config" --disable GCC_PLUGIN_STRUCTLEAK_USER
 "$WORK/linux/scripts/config" --file "$WORK/linux/.config" --disable GCC_PLUGIN_STRUCTLEAK_BYREF

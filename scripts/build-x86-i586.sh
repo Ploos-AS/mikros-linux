@@ -56,6 +56,11 @@ make -C "$WORK/linux" ARCH=x86 i386_defconfig
 apply_fragment "$WORK/linux" configs/kernel/x86-i586.fragment
 yes "" | make -C "$WORK/linux" ARCH=x86 oldconfig >/dev/null
 
+# i386_defconfig may retain a newer x86 CPU family through Kconfig choice
+# resolution. Enforce the M0 hardware floor explicitly after oldconfig.
+"$WORK/linux/scripts/config" --file "$WORK/linux/.config" --disable M686
+"$WORK/linux/scripts/config" --file "$WORK/linux/.config" --enable M586
+
 # Plugin-based GCC hardening is outside the minimal M0 baseline. Resolve the
 # full Kconfig first, then enforce this policy without another oldconfig pass.
 "$WORK/linux/scripts/config" --file "$WORK/linux/.config" --disable GCC_PLUGIN_STRUCTLEAK
@@ -66,7 +71,73 @@ yes "" | make -C "$WORK/linux" ARCH=x86 oldconfig >/dev/null
 "$WORK/linux/scripts/config" --file "$WORK/linux/.config" --enable INIT_STACK_NONE
 "$WORK/linux/scripts/config" --file "$WORK/linux/.config" --disable GCC_PLUGINS
 
-grep -q '^# CONFIG_GCC_PLUGINS is not set$' "$WORK/linux/.config" ||
+grep -q '^CONFIG_M586=y
+    die "kernel config unexpectedly enabled CONFIG_GCC_PLUGINS"
+if grep -Eq '^CONFIG_GCC_PLUGIN_STRUCTLEAK(_BYREF(_ALL)?|_USER)?=y$' "$WORK/linux/.config"; then
+    die "kernel config unexpectedly retained structleak hardening"
+fi
+
+# Kernel itself does not depend on musl, but the same cross prefix keeps
+# host/target separation explicit.
+make -C "$WORK/linux" -j"$JOBS" V=1 ARCH=x86 CROSS_COMPILE=i586-linux-musl- bzImage
+
+mkdir -p "$OUT/boot"
+cp "$WORK/linux/arch/x86/boot/bzImage" "$OUT/boot/bzImage"
+
+(
+    cd "$ROOT"
+    find . -print | LC_ALL=C sort | cpio -o -H newc 2>/dev/null | gzip -9n
+) > "$OUT/boot/initramfs.cpio.gz"
+
+sha256sum "$OUT/boot/bzImage" "$OUT/boot/initramfs.cpio.gz" > "$OUT/SHA256SUMS"
+echo "built $OUT/boot/bzImage and initramfs.cpio.gz"
+ "$WORK/linux/.config" ||
+    die "kernel config did not retain CONFIG_M586"
+if grep -q '^CONFIG_M686=y
+    die "kernel config unexpectedly enabled CONFIG_GCC_PLUGINS"
+if grep -Eq '^CONFIG_GCC_PLUGIN_STRUCTLEAK(_BYREF(_ALL)?|_USER)?=y$' "$WORK/linux/.config"; then
+    die "kernel config unexpectedly retained structleak hardening"
+fi
+
+# Kernel itself does not depend on musl, but the same cross prefix keeps
+# host/target separation explicit.
+make -C "$WORK/linux" -j"$JOBS" V=1 ARCH=x86 CROSS_COMPILE=i586-linux-musl- bzImage
+
+mkdir -p "$OUT/boot"
+cp "$WORK/linux/arch/x86/boot/bzImage" "$OUT/boot/bzImage"
+
+(
+    cd "$ROOT"
+    find . -print | LC_ALL=C sort | cpio -o -H newc 2>/dev/null | gzip -9n
+) > "$OUT/boot/initramfs.cpio.gz"
+
+sha256sum "$OUT/boot/bzImage" "$OUT/boot/initramfs.cpio.gz" > "$OUT/SHA256SUMS"
+echo "built $OUT/boot/bzImage and initramfs.cpio.gz"
+ "$WORK/linux/.config"; then
+    die "kernel config unexpectedly retained CONFIG_M686"
+fi
+
+grep -q '^# CONFIG_GCC_PLUGINS is not set
+    die "kernel config unexpectedly enabled CONFIG_GCC_PLUGINS"
+if grep -Eq '^CONFIG_GCC_PLUGIN_STRUCTLEAK(_BYREF(_ALL)?|_USER)?=y$' "$WORK/linux/.config"; then
+    die "kernel config unexpectedly retained structleak hardening"
+fi
+
+# Kernel itself does not depend on musl, but the same cross prefix keeps
+# host/target separation explicit.
+make -C "$WORK/linux" -j"$JOBS" V=1 ARCH=x86 CROSS_COMPILE=i586-linux-musl- bzImage
+
+mkdir -p "$OUT/boot"
+cp "$WORK/linux/arch/x86/boot/bzImage" "$OUT/boot/bzImage"
+
+(
+    cd "$ROOT"
+    find . -print | LC_ALL=C sort | cpio -o -H newc 2>/dev/null | gzip -9n
+) > "$OUT/boot/initramfs.cpio.gz"
+
+sha256sum "$OUT/boot/bzImage" "$OUT/boot/initramfs.cpio.gz" > "$OUT/SHA256SUMS"
+echo "built $OUT/boot/bzImage and initramfs.cpio.gz"
+ "$WORK/linux/.config" ||
     die "kernel config unexpectedly enabled CONFIG_GCC_PLUGINS"
 if grep -Eq '^CONFIG_GCC_PLUGIN_STRUCTLEAK(_BYREF(_ALL)?|_USER)?=y$' "$WORK/linux/.config"; then
     die "kernel config unexpectedly retained structleak hardening"

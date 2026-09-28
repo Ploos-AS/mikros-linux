@@ -32,6 +32,20 @@ jobs:
           mkdir -p out/x86-i586/minimal
           sh ./scripts/build-x86-i586.sh minimal out/x86-i586/minimal 2>&1 | tee out/x86-i586/minimal/build.log
 
+      - name: Inspect x86 bzImage boot header
+        run: |
+          python3 - <<'PY' | tee out/x86-i586/minimal/bzimage-header.log
+          from pathlib import Path
+          p = Path("out/x86-i586/minimal/boot/bzImage").read_bytes()
+          print("size:", len(p))
+          print("boot_flag:", p[0x1fe:0x200].hex())
+          print("header:", p[0x202:0x206].decode("ascii", "replace"))
+          print("protocol:", f"{p[0x207]:02x}{p[0x206]:02x}")
+          print("setup_sects:", p[0x1f1] or 4)
+          assert p[0x1fe:0x200] == b"\\x55\\xaa", "invalid x86 boot flag"
+          assert p[0x202:0x206] == b"HdrS", "missing Linux boot protocol header"
+          PY
+
       - name: Boot-test x86-i586 image
         run: |
           sh ./scripts/qemu-smoke-x86.sh out/x86-i586/minimal
@@ -45,5 +59,6 @@ jobs:
             out/x86-i586/minimal/boot/
             out/x86-i586/minimal/SHA256SUMS
             out/x86-i586/minimal/build.log
+            out/x86-i586/minimal/bzimage-header.log
             out/x86-i586/minimal/qemu-smoke.log
           if-no-files-found: warn

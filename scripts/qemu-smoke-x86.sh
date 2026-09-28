@@ -19,7 +19,7 @@ timeout 20 qemu-system-i386 \
   -kernel "$KERNEL" -initrd "$INITRD" \
   -append "earlyprintk=serial,ttyS0,115200 console=ttyS0,115200 rdinit=/sbin/init" \
   -display none -serial stdio -monitor none \
-  -d guest_errors -no-reboot >"$log" 2>&1
+  -no-reboot >"$log" 2>&1
 rc=$?
 set -e
 

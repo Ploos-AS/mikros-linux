@@ -92,6 +92,23 @@ jobs:
           rm -f "$OUT/qemu-debug.full.log"
           set -e
 
+      - name: Compare QEMU x86 CPU models
+        run: |
+          OUT=out/x86-i586/minimal
+          for cpu in pentium pentium2 qemu32; do
+            log="$OUT/qemu-cpu-$cpu.log"
+            set +e
+            timeout --signal=TERM --kill-after=1s 8s qemu-system-i386 \
+              -M pc -cpu "$cpu" -m 32M \
+              -kernel "$OUT/boot/bzImage" \
+              -append "earlyprintk=serial,ttyS0,115200 console=ttyS0,115200" \
+              -display none -serial stdio -monitor none -no-reboot \
+              >"$log" 2>&1
+            rc=$?
+            set -e
+            echo "cpu=$cpu rc=$rc" | tee -a "$log"
+          done
+
       - name: Boot-test x86-i586 image
         run: |
           sh ./scripts/qemu-smoke-x86.sh out/x86-i586/minimal
@@ -109,6 +126,7 @@ jobs:
             out/x86-i586/minimal/kernel-config-summary.log
             out/x86-i586/minimal/bzimage-header.log
             out/x86-i586/minimal/qemu-kernel-only.log
+            out/x86-i586/minimal/qemu-cpu-*.log
             out/x86-i586/minimal/qemu-debug-head.log
             out/x86-i586/minimal/qemu-debug.log
             out/x86-i586/minimal/qemu-smoke.log

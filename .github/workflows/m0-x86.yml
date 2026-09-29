@@ -46,6 +46,29 @@ jobs:
           assert p[0x202:0x206] == b"HdrS", "missing Linux boot protocol header"
           PY
 
+      - name: Diagnose early x86 boot
+        run: |
+          OUT=out/x86-i586/minimal
+          set +e
+          timeout --signal=TERM --kill-after=2s 8s qemu-system-i386 \
+            -M pc -cpu pentium -m 32M \
+            -kernel "$OUT/boot/bzImage" \
+            -append "earlyprintk=serial,ttyS0,115200 console=ttyS0,115200" \
+            -display none -serial stdio -monitor none -no-reboot \
+            >"$OUT/qemu-kernel-only.log" 2>&1
+          echo "kernel-only rc=$?" | tee -a "$OUT/qemu-kernel-only.log"
+
+          timeout --signal=TERM --kill-after=2s 5s qemu-system-i386 \
+            -M pc -cpu pentium -m 32M \
+            -kernel "$OUT/boot/bzImage" \
+            -append "earlyprintk=serial,ttyS0,115200 console=ttyS0,115200" \
+            -display none -serial none -monitor none -no-reboot \
+            -d cpu_reset,int -D "$OUT/qemu-debug.full.log"
+          echo "debug rc=$?"
+          tail -n 400 "$OUT/qemu-debug.full.log" > "$OUT/qemu-debug.log"
+          rm -f "$OUT/qemu-debug.full.log"
+          set -e
+
       - name: Boot-test x86-i586 image
         run: |
           sh ./scripts/qemu-smoke-x86.sh out/x86-i586/minimal
@@ -60,5 +83,7 @@ jobs:
             out/x86-i586/minimal/SHA256SUMS
             out/x86-i586/minimal/build.log
             out/x86-i586/minimal/bzimage-header.log
+            out/x86-i586/minimal/qemu-kernel-only.log
+            out/x86-i586/minimal/qemu-debug.log
             out/x86-i586/minimal/qemu-smoke.log
           if-no-files-found: warn

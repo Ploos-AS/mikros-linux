@@ -23,7 +23,7 @@ jobs:
 
       - name: Cache local i586 musl toolchain
         id: toolchain-cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: out/toolchains/x86-i586
           key: i586-musl-${{ runner.os }}-${{ hashFiles('versions.conf', 'scripts/build-toolchain-x86.sh') }}
@@ -31,6 +31,13 @@ jobs:
       - name: Build local i586 musl toolchain
         if: steps.toolchain-cache.outputs.cache-hit != 'true'
         run: sh ./scripts/build-toolchain-x86.sh
+
+      - name: Save local i586 musl toolchain cache
+        if: steps.toolchain-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: out/toolchains/x86-i586
+          key: i586-musl-${{ runner.os }}-${{ hashFiles('versions.conf', 'scripts/build-toolchain-x86.sh') }}
 
       - name: Add i586 toolchain to PATH
         run: echo "$GITHUB_WORKSPACE/out/toolchains/x86-i586/bin" >> "$GITHUB_PATH"
@@ -73,13 +80,14 @@ jobs:
             >"$OUT/qemu-kernel-only.log" 2>&1
           echo "kernel-only rc=$?" | tee -a "$OUT/qemu-kernel-only.log"
 
-          timeout --signal=TERM --kill-after=2s 5s qemu-system-i386 \
+          timeout --signal=TERM --kill-after=1s 2s qemu-system-i386 \
             -M pc -cpu pentium -m 32M \
             -kernel "$OUT/boot/bzImage" \
             -append "earlyprintk=serial,ttyS0,115200 console=ttyS0,115200" \
             -display none -serial none -monitor none -no-reboot \
-            -d cpu_reset,int -D "$OUT/qemu-debug.full.log"
+            -d cpu_reset,int,guest_errors -D "$OUT/qemu-debug.full.log"
           echo "debug rc=$?"
+          head -n 120 "$OUT/qemu-debug.full.log" > "$OUT/qemu-debug-head.log"
           tail -n 400 "$OUT/qemu-debug.full.log" > "$OUT/qemu-debug.log"
           rm -f "$OUT/qemu-debug.full.log"
           set -e
@@ -101,6 +109,7 @@ jobs:
             out/x86-i586/minimal/kernel-config-summary.log
             out/x86-i586/minimal/bzimage-header.log
             out/x86-i586/minimal/qemu-kernel-only.log
+            out/x86-i586/minimal/qemu-debug-head.log
             out/x86-i586/minimal/qemu-debug.log
             out/x86-i586/minimal/qemu-smoke.log
           if-no-files-found: warn

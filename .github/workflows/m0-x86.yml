@@ -21,16 +21,31 @@ jobs:
       - name: Fetch pinned sources
         run: sh ./scripts/fetch-sources.sh
 
+      - name: Cache local i586 musl toolchain
+        id: toolchain-cache
+        uses: actions/cache@v4
+        with:
+          path: out/toolchains/x86-i586
+          key: i586-musl-${{ runner.os }}-${{ hashFiles('versions.conf', 'scripts/build-toolchain-x86.sh') }}
+
       - name: Build local i586 musl toolchain
-        run: |
-          sh ./scripts/build-toolchain-x86.sh
-          echo "$GITHUB_WORKSPACE/out/toolchains/x86-i586/bin" >> "$GITHUB_PATH"
+        if: steps.toolchain-cache.outputs.cache-hit != 'true'
+        run: sh ./scripts/build-toolchain-x86.sh
+
+      - name: Add i586 toolchain to PATH
+        run: echo "$GITHUB_WORKSPACE/out/toolchains/x86-i586/bin" >> "$GITHUB_PATH"
 
       - name: Build x86-i586 image
         run: |
           set -o pipefail
           mkdir -p out/x86-i586/minimal
           sh ./scripts/build-x86-i586.sh minimal out/x86-i586/minimal 2>&1 | tee out/x86-i586/minimal/build.log
+
+      - name: Record resolved x86 kernel configuration
+        run: |
+          CFG=out/x86-i586/minimal/work/linux/.config
+          cp "$CFG" out/x86-i586/minimal/kernel.config
+          grep -E '^(CONFIG_(M586|M686|PRINTK|TTY|SERIAL_8250|SERIAL_8250_CONSOLE|SERIAL_CORE|SERIAL_CORE_CONSOLE|EARLY_PRINTK|DEBUG_KERNEL|BLK_DEV_INITRD|RD_GZIP|DEVTMPFS|DEVTMPFS_MOUNT|BINFMT_ELF|RELOCATABLE|PHYSICAL_START|PHYSICAL_ALIGN)=|# CONFIG_(M586|M686|PRINTK|TTY|SERIAL_8250|SERIAL_8250_CONSOLE|SERIAL_CORE|SERIAL_CORE_CONSOLE|EARLY_PRINTK|DEBUG_KERNEL|BLK_DEV_INITRD|RD_GZIP|DEVTMPFS|DEVTMPFS_MOUNT|BINFMT_ELF|RELOCATABLE).*not set)' "$CFG" | sort | tee out/x86-i586/minimal/kernel-config-summary.log
 
       - name: Inspect x86 bzImage boot header
         run: |
@@ -82,6 +97,8 @@ jobs:
             out/x86-i586/minimal/boot/
             out/x86-i586/minimal/SHA256SUMS
             out/x86-i586/minimal/build.log
+            out/x86-i586/minimal/kernel.config
+            out/x86-i586/minimal/kernel-config-summary.log
             out/x86-i586/minimal/bzimage-header.log
             out/x86-i586/minimal/qemu-kernel-only.log
             out/x86-i586/minimal/qemu-debug.log

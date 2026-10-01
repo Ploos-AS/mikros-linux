@@ -27,9 +27,11 @@ Both profiles use the same MikrOS Linux repository and should share package meta
 
 ## Initial architecture candidates
 
-M0 investigates **m68k, 32-bit ARM, 32-bit x86 and 32-bit PowerPC**. No CPU generation is supported until it passes MikrOS qualification.
+M0 investigates **m68k, 32-bit ARM, 32-bit x86, 32-bit PowerPC, RISC-V 32-bit and RISC-V 64-bit**. No CPU generation is supported until it passes MikrOS qualification.
 
 For m68k, M0 explicitly investigates both classic MMU-capable m68k and **ColdFire V2/no-MMU**, with an **MCF5208-class target** as the initial ColdFire/uClinux reference. Later MMU-capable ColdFire targets may be qualified as Linux/MMU targets.
+
+For RISC-V, **riscv32** and **riscv64** are explicit Linux/MMU architecture targets. QEMU is the initial reference and CI platform so the architecture contract can be qualified independently of a particular development board. Physical RISC-V reference hardware will be selected later based on maintainability, upstream support and MikrOS' minimum-platform goals.
 
 ## Relationship to MikrOS ELKS
 

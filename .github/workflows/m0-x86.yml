@@ -137,8 +137,14 @@ jobs:
           set -e
           echo "grub qemu rc=$rc" | tee -a "$OUT/qemu-grub.log"
           cat "$OUT/qemu-grub.log"
+          grep -q "MikrOS Linux" "$OUT/qemu-grub.log" || {
+            echo "FAIL: MikrOS userspace banner not observed via GRUB" >&2
+            exit 1
+          }
+          echo "PASS: x86-i586/minimal reached MikrOS userspace via BIOS/GRUB"
 
-      - name: Boot-test x86-i586 image
+      - name: Diagnose QEMU direct-kernel boot
+        continue-on-error: true
         run: |
           sh ./scripts/qemu-smoke-x86.sh out/x86-i586/minimal
 

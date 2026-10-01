@@ -3,7 +3,7 @@
 ## M0 — Architecture and minimum-platform definition
 
 - [x] Define project scope and design principles.
-- [x] Establish initial architecture candidates: m68k, 32-bit ARM and 32-bit x86.
+- [x] Establish initial architecture candidates: m68k, 32-bit ARM, 32-bit x86, 32-bit PowerPC, RISC-V 32-bit and RISC-V 64-bit.
 - [ ] Determine the minimum maintainable Linux kernel baseline.
 - [ ] Determine minimum CPU/MMU requirements for each target, explicitly supporting both Linux/MMU and Linux/no-MMU where practical.
 - [ ] Define Linux/no-MMU (uClinux) as a first-class MikrOS Linux profile rather than a separate repository.
@@ -14,6 +14,9 @@
 - [ ] Select init and base command strategy.
 - [ ] Establish cross-toolchain builds.
 - [ ] Establish emulator reference machines.
+- [ ] Define riscv32 and riscv64 Linux/MMU baselines, cross-toolchains and kernel configurations.
+- [ ] Qualify QEMU as the initial riscv32/riscv64 reference and CI platform.
+- [ ] Defer selection of physical RISC-V reference boards until the architecture-level minimum requirements and qualification contract are established.
 - [ ] Define automated boot/qualification criteria.
 - [ ] Produce the first reproducible minimal root filesystem.
 
@@ -47,3 +50,19 @@ Introduce a deliberately small package recipe/build model. Do not inherit a heav
 ### M4 exit criteria
 
 M4 is complete when MikrOS Linux/no-MMU is a reproducible, useful distribution profile rather than merely a kernel boot demonstration, with ColdFire V2/MCF5208-class qualification evidence and shared MikrOS package/build semantics.
+
+
+## M5 — RISC-V qualification
+
+- Qualify both riscv32 and riscv64 as first-class MikrOS Linux architectures.
+- Produce reproducible kernel and MikrOS root filesystem images for each architecture.
+- Boot both profiles under QEMU to a usable MikrOS shell.
+- Qualify console, storage, networking, process execution and MPK/package workflows.
+- Add automated riscv32 and riscv64 boot tests to CI.
+- Document minimum ISA/extensions, RAM and platform requirements separately for 32-bit and 64-bit targets.
+- Select physical reference hardware only after the QEMU architecture contracts are stable.
+- Where useful, use RISC-V as a comparison/reference architecture in EduCPU material without coupling MikrOS to EduCPU.
+
+### M5 exit criteria
+
+M5 is complete when riscv32 and riscv64 each have a documented architecture contract, reproducible QEMU boot image, usable MikrOS userspace and automated CI qualification. Physical-board qualification may follow without blocking architecture-level support.

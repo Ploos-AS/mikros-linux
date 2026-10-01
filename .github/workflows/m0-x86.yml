@@ -109,6 +109,32 @@ jobs:
             echo "cpu=$cpu rc=$rc" | tee -a "$log"
           done
 
+      - name: Build upstream-style i586 control kernel
+        run: |
+          OUT=out/x86-i586/minimal
+          K="$OUT/work/linux-control"
+          rm -rf "$K"
+          mkdir -p "$K"
+          tar -xJf "sources/linux-$(. ./versions.conf; printf '%s' "$LINUX_VERSION").tar.xz" -C "$K" --strip-components=1
+          make -C "$K" ARCH=x86 i386_defconfig
+          "$K/scripts/config" --file "$K/.config" --disable M686
+          "$K/scripts/config" --file "$K/.config" --enable M586
+          "$K/scripts/config" --file "$K/.config" --disable GCC_PLUGINS
+          make -C "$K" ARCH=x86 olddefconfig >/dev/null
+          make -C "$K" -j2 ARCH=x86 CROSS_COMPILE=i586-linux-musl- bzImage
+          cp "$K/arch/x86/boot/bzImage" "$OUT/boot/bzImage-control"
+          set +e
+          timeout --signal=TERM --kill-after=1s 12s qemu-system-i386 \
+            -M pc -cpu pentium -m 32M \
+            -kernel "$OUT/boot/bzImage-control" \
+            -append "earlyprintk=serial,ttyS0,115200 console=ttyS0,115200" \
+            -display none -serial stdio -monitor none -no-reboot \
+            >"$OUT/qemu-control-kernel.log" 2>&1
+          rc=$?
+          set -e
+          echo "control kernel rc=$rc" | tee -a "$OUT/qemu-control-kernel.log"
+          cat "$OUT/qemu-control-kernel.log"
+
       - name: Boot-test x86-i586 image via GRUB ISO
         run: |
           OUT=out/x86-i586/minimal
@@ -161,6 +187,7 @@ jobs:
             out/x86-i586/minimal/kernel-config-summary.log
             out/x86-i586/minimal/bzimage-header.log
             out/x86-i586/minimal/qemu-kernel-only.log
+            out/x86-i586/minimal/qemu-control-kernel.log
             out/x86-i586/minimal/qemu-cpu-*.log
             out/x86-i586/minimal/qemu-debug-head.log
             out/x86-i586/minimal/qemu-debug.log

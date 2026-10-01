@@ -16,9 +16,20 @@ It takes inspiration from Alpine Linux's minimalism and simplicity, with Debian-
 - Avoid unnecessary daemons and runtime complexity.
 - Keep architecture-specific compromises explicit and documented.
 
+## Linux execution profiles
+
+MikrOS Linux supports both Linux execution models where upstream support and the target architecture make them practical:
+
+- **Linux/MMU** — the normal full Linux profile for MMU-capable systems.
+- **Linux/no-MMU (uClinux)** — the no-MMU Linux profile for smaller embedded-class systems. uClinux is treated as an execution/profile name, not as a separate MikrOS product or repository.
+
+Both profiles use the same MikrOS Linux repository and should share package metadata, build conventions, filesystem policy, configuration and administration semantics wherever practical.
+
 ## Initial architecture candidates
 
 M0 investigates **m68k, 32-bit ARM, 32-bit x86 and 32-bit PowerPC**. No CPU generation is supported until it passes MikrOS qualification.
+
+For m68k, M0 explicitly investigates both classic MMU-capable m68k and **ColdFire V2/no-MMU**, with an **MCF5208-class target** as the initial ColdFire/uClinux reference. Later MMU-capable ColdFire targets may be qualified as Linux/MMU targets.
 
 ## Relationship to MikrOS ELKS
 

@@ -119,8 +119,88 @@ jobs:
           make -C "$K" ARCH=x86 i386_defconfig
           "$K/scripts/config" --file "$K/.config" --disable M686
           "$K/scripts/config" --file "$K/.config" --enable M586
-          "$K/scripts/config" --file "$K/.config" --disable GCC_PLUGINS
           make -C "$K" ARCH=x86 olddefconfig >/dev/null
+          "$K/scripts/config" --file "$K/.config" --disable GCC_PLUGIN_STRUCTLEAK
+          "$K/scripts/config" --file "$K/.config" --disable GCC_PLUGIN_STRUCTLEAK_USER
+          "$K/scripts/config" --file "$K/.config" --disable GCC_PLUGIN_STRUCTLEAK_BYREF
+          "$K/scripts/config" --file "$K/.config" --disable GCC_PLUGIN_STRUCTLEAK_BYREF_ALL
+          "$K/scripts/config" --file "$K/.config" --disable GCC_PLUGIN_STACKLEAK
+          "$K/scripts/config" --file "$K/.config" --enable INIT_STACK_NONE
+          "$K/scripts/config" --file "$K/.config" --disable GCC_PLUGINS
+          grep -q '^# CONFIG_GCC_PLUGINS is not set          cp "$K/arch/x86/boot/bzImage" "$OUT/boot/bzImage-control"
+          set +e
+          timeout --signal=TERM --kill-after=1s 12s qemu-system-i386 \
+            -M pc -cpu pentium -m 32M \
+            -kernel "$OUT/boot/bzImage-control" \
+            -append "earlyprintk=serial,ttyS0,115200 console=ttyS0,115200" \
+            -display none -serial stdio -monitor none -no-reboot \
+            >"$OUT/qemu-control-kernel.log" 2>&1
+          rc=$?
+          set -e
+          echo "control kernel rc=$rc" | tee -a "$OUT/qemu-control-kernel.log"
+          cat "$OUT/qemu-control-kernel.log"
+
+      - name: Boot-test x86-i586 image via GRUB ISO
+        run: |
+          OUT=out/x86-i586/minimal
+          ISO="$OUT/grub-iso"
+          mkdir -p "$ISO/boot/grub"
+          cp "$OUT/boot/bzImage" "$ISO/boot/bzImage"
+          cp "$OUT/boot/initramfs.cpio.gz" "$ISO/boot/initramfs.cpio.gz"
+          cat > "$ISO/boot/grub/grub.cfg" <<'EOF'
+          set timeout=0
+          set default=0
+          terminal_output console
+          menuentry "MikrOS Linux i586" {
+            linux /boot/bzImage earlyprintk=serial,ttyS0,115200 console=ttyS0,115200 rdinit=/sbin/init
+            initrd /boot/initramfs.cpio.gz
+          }
+          EOF
+          grub-mkrescue -o "$OUT/mikros-i586.iso" "$ISO" >"$OUT/grub-mkrescue.log" 2>&1
+
+          set +e
+          timeout --signal=TERM --kill-after=1s 20s qemu-system-i386 \
+            -M pc -cpu pentium -m 32M \
+            -cdrom "$OUT/mikros-i586.iso" -boot d \
+            -display none -serial stdio -monitor none -no-reboot \
+            >"$OUT/qemu-grub.log" 2>&1
+          rc=$?
+          set -e
+          echo "grub qemu rc=$rc" | tee -a "$OUT/qemu-grub.log"
+          cat "$OUT/qemu-grub.log"
+          grep -q "MikrOS Linux" "$OUT/qemu-grub.log" || {
+            echo "FAIL: MikrOS userspace banner not observed via GRUB" >&2
+            exit 1
+          }
+          echo "PASS: x86-i586/minimal reached MikrOS userspace via BIOS/GRUB"
+
+      - name: Diagnose QEMU direct-kernel boot
+        continue-on-error: true
+        run: |
+          sh ./scripts/qemu-smoke-x86.sh out/x86-i586/minimal
+
+      - name: Upload qualification logs and artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mikros-x86-i586-minimal
+          path: |
+            out/x86-i586/minimal/boot/
+            out/x86-i586/minimal/SHA256SUMS
+            out/x86-i586/minimal/build.log
+            out/x86-i586/minimal/kernel.config
+            out/x86-i586/minimal/kernel-config-summary.log
+            out/x86-i586/minimal/bzimage-header.log
+            out/x86-i586/minimal/qemu-kernel-only.log
+            out/x86-i586/minimal/qemu-control-kernel.log
+            out/x86-i586/minimal/qemu-cpu-*.log
+            out/x86-i586/minimal/qemu-debug-head.log
+            out/x86-i586/minimal/qemu-debug.log
+            out/x86-i586/minimal/grub-mkrescue.log
+            out/x86-i586/minimal/qemu-grub.log
+            out/x86-i586/minimal/qemu-smoke.log
+          if-no-files-found: warn
+ "$K/.config"
           make -C "$K" -j2 ARCH=x86 CROSS_COMPILE=i586-linux-musl- bzImage
           cp "$K/arch/x86/boot/bzImage" "$OUT/boot/bzImage-control"
           set +e

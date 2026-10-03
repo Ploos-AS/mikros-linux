@@ -200,7 +200,7 @@ jobs:
 
           set +e
           timeout --signal=TERM --kill-after=1s 20s qemu-system-i386 \
-            -M pc -cpu pentium -m 32M \
+            -M pc -cpu pentium -m 128M \
             -cdrom "$OUT/mikros-i586.iso" -boot d \
             -display none -serial stdio -monitor none -no-reboot \
             >"$OUT/qemu-grub.log" 2>&1

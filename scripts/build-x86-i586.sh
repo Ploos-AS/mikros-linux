@@ -10,6 +10,11 @@ JOBS=${JOBS:-2}
 SRC=${SRC:-sources}
 WORK="$OUT/work"
 ROOT="$OUT/rootfs"
+# BusyBox install runs under make -C, so CONFIG_PREFIX must be absolute.
+case "$ROOT" in
+    /*) ;;
+    *) ROOT="$PWD/$ROOT" ;;
+esac
 
 [ "$PROFILE" = minimal ] || die "x86 M0 builder currently qualifies minimal only"
 

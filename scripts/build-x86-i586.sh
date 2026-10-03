@@ -80,8 +80,18 @@ mkdir -p "$OUT/boot"
 cp "$WORK/linux/arch/x86/boot/bzImage" "$OUT/boot/bzImage"
 (
     cd "$ROOT"
-    find . -print | LC_ALL=C sort | cpio -o -H newc 2>/dev/null | gzip -9n
+    find . -print0 | LC_ALL=C sort -z | cpio --null -o -H newc 2>/dev/null | gzip -9n
 ) > "$OUT/boot/initramfs.cpio.gz"
+
+# A valid BusyBox rootfs is much larger than an empty cpio trailer. Catch
+# truncated/empty initramfs artifacts before spending time on QEMU boot tests.
+initramfs_size=$(wc -c < "$OUT/boot/initramfs.cpio.gz")
+[ "$initramfs_size" -gt 65536 ] ||
+    die "initramfs unexpectedly small: $initramfs_size bytes"
+gzip -dc "$OUT/boot/initramfs.cpio.gz" | cpio -t 2>/dev/null | grep -q '^sbin/init "$OUT/boot/bzImage" "$OUT/boot/initramfs.cpio.gz" > "$OUT/SHA256SUMS"
+echo "built $OUT/boot/bzImage and initramfs.cpio.gz"
+ ||
+    die "initramfs is missing sbin/init"
 
 sha256sum "$OUT/boot/bzImage" "$OUT/boot/initramfs.cpio.gz" > "$OUT/SHA256SUMS"
 echo "built $OUT/boot/bzImage and initramfs.cpio.gz"

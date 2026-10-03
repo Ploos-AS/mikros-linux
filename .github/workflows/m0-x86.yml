@@ -115,7 +115,8 @@ jobs:
           K="$OUT/work/linux-control"
           rm -rf "$K"
           mkdir -p "$K"
-          tar -xJf "sources/linux-$(. ./versions.conf; printf '%s' "$LINUX_VERSION").tar.xz" -C "$K" --strip-components=1
+          . ./versions.conf
+          tar -xJf "sources/linux-$LINUX_VERSION.tar.xz" -C "$K" --strip-components=1
           make -C "$K" ARCH=x86 i386_defconfig
           "$K/scripts/config" --file "$K/.config" --disable M686
           "$K/scripts/config" --file "$K/.config" --enable M586
@@ -127,7 +128,10 @@ jobs:
           "$K/scripts/config" --file "$K/.config" --disable GCC_PLUGIN_STACKLEAK
           "$K/scripts/config" --file "$K/.config" --enable INIT_STACK_NONE
           "$K/scripts/config" --file "$K/.config" --disable GCC_PLUGINS
-          grep -q '^# CONFIG_GCC_PLUGINS is not set          cp "$K/arch/x86/boot/bzImage" "$OUT/boot/bzImage-control"
+          grep -q '^CONFIG_M586=y$' "$K/.config"
+          grep -q '^# CONFIG_GCC_PLUGINS is not set$' "$K/.config"
+          make -C "$K" -j2 ARCH=x86 CROSS_COMPILE=i586-linux-musl- bzImage
+          cp "$K/arch/x86/boot/bzImage" "$OUT/boot/bzImage-control"
           set +e
           timeout --signal=TERM --kill-after=1s 12s qemu-system-i386 \
             -M pc -cpu pentium -m 32M \

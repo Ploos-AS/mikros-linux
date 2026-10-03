@@ -6,15 +6,16 @@ set -eu
 
 PROFILE=${1:-minimal}
 OUT=${2:-out/x86-i586/$PROFILE}
+# Keep all derived paths absolute: BusyBox install runs under make -C and
+# initramfs creation changes directory into the rootfs.
+case "$OUT" in
+    /*) ;;
+    *) OUT="$PWD/$OUT" ;;
+esac
 JOBS=${JOBS:-2}
 SRC=${SRC:-sources}
 WORK="$OUT/work"
 ROOT="$OUT/rootfs"
-# BusyBox install runs under make -C, so CONFIG_PREFIX must be absolute.
-case "$ROOT" in
-    /*) ;;
-    *) ROOT="$PWD/$ROOT" ;;
-esac
 
 [ "$PROFILE" = minimal ] || die "x86 M0 builder currently qualifies minimal only"
 

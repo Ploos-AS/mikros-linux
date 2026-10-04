@@ -94,13 +94,7 @@ cp "$WORK/linux/arch/x86/boot/bzImage" "$OUT/boot/bzImage"
 initramfs_size=$(wc -c < "$OUT/boot/initramfs.cpio.gz")
 [ "$initramfs_size" -gt 65536 ] ||
     die "initramfs unexpectedly small: $initramfs_size bytes"
-if ! gzip -dc "$OUT/boot/initramfs.cpio.gz" | cpio -t 2>/dev/null | grep -q '^sbin/init
-    die "initramfs is missing sbin/init"
-fi
-
-sha256sum "$OUT/boot/bzImage" "$OUT/boot/initramfs.cpio.gz" > "$OUT/SHA256SUMS"
-echo "built $OUT/boot/bzImage and initramfs.cpio.gz"
-; then
+if ! gzip -dc "$OUT/boot/initramfs.cpio.gz" | cpio -t 2>/dev/null | grep -q '^sbin/init$'; then
     die "initramfs is missing sbin/init"
 fi
 

@@ -214,8 +214,7 @@ jobs:
           }
           echo "PASS: x86-i586/minimal reached MikrOS userspace via BIOS/GRUB"
 
-      - name: Diagnose QEMU direct-kernel boot
-        continue-on-error: true
+      - name: Qualify QEMU direct-kernel boot
         run: |
           sh ./scripts/qemu-smoke-x86.sh out/x86-i586/minimal
 

@@ -3,7 +3,25 @@ name: M0 x86 qualification
 on:
   push:
     branches: [ main ]
+    paths:
+      - 'scripts/build-toolchain-x86.sh'
+      - 'scripts/build-x86-i586.sh'
+      - 'scripts/qemu-smoke-x86.sh'
+      - 'scripts/fetch-sources.sh'
+      - 'targets/x86-i586.conf'
+      - 'profiles/**'
+      - 'versions.conf'
+      - '.github/workflows/m0-x86.yml'
   pull_request:
+    paths:
+      - 'scripts/build-toolchain-x86.sh'
+      - 'scripts/build-x86-i586.sh'
+      - 'scripts/qemu-smoke-x86.sh'
+      - 'scripts/fetch-sources.sh'
+      - 'targets/x86-i586.conf'
+      - 'profiles/**'
+      - 'versions.conf'
+      - '.github/workflows/m0-x86.yml'
   workflow_dispatch:
 
 jobs:

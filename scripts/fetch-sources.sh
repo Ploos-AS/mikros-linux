@@ -21,3 +21,10 @@ fetch() {
 fetch "https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-$LINUX_VERSION.tar.xz" "$dest/linux-$LINUX_VERSION.tar.xz"
 fetch "https://musl.libc.org/releases/musl-$MUSL_VERSION.tar.gz" "$dest/musl-$MUSL_VERSION.tar.gz"
 fetch "https://busybox.net/downloads/busybox-$BUSYBOX_VERSION.tar.bz2" "$dest/busybox-$BUSYBOX_VERSION.tar.bz2"
+
+fetch "https://downloads.uclibc-ng.org/releases/$UCLIBC_NG_VERSION/uClibc-ng-$UCLIBC_NG_VERSION.tar.xz" "$dest/uClibc-ng-$UCLIBC_NG_VERSION.tar.xz"
+fetch "https://downloads.uclibc-ng.org/releases/$UCLIBC_NG_VERSION/uClibc-ng-$UCLIBC_NG_VERSION.tar.xz.sha256" "$dest/uClibc-ng-$UCLIBC_NG_VERSION.tar.xz.sha256"
+(
+  cd "$dest"
+  sha256sum -c "uClibc-ng-$UCLIBC_NG_VERSION.tar.xz.sha256"
+)

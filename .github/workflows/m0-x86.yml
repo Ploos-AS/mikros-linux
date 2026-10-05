@@ -68,116 +68,6 @@ jobs:
           assert p[0x202:0x206] == b"HdrS", "missing Linux boot protocol header"
           PY
 
-      - name: Diagnose early x86 boot
-        run: |
-          OUT=out/x86-i586/minimal
-          set +e
-          timeout --signal=TERM --kill-after=2s 8s qemu-system-i386 \
-            -M pc -cpu pentium -m 32M \
-            -kernel "$OUT/boot/bzImage" \
-            -append "earlyprintk=serial,ttyS0,115200 console=ttyS0,115200" \
-            -display none -serial stdio -monitor none -no-reboot \
-            >"$OUT/qemu-kernel-only.log" 2>&1
-          echo "kernel-only rc=$?" | tee -a "$OUT/qemu-kernel-only.log"
-
-          timeout --signal=TERM --kill-after=1s 2s qemu-system-i386 \
-            -M pc -cpu pentium -m 32M \
-            -kernel "$OUT/boot/bzImage" \
-            -append "earlyprintk=serial,ttyS0,115200 console=ttyS0,115200" \
-            -display none -serial none -monitor none -no-reboot \
-            -d cpu_reset,int,guest_errors -D "$OUT/qemu-debug.full.log"
-          echo "debug rc=$?"
-          head -n 120 "$OUT/qemu-debug.full.log" > "$OUT/qemu-debug-head.log"
-          tail -n 400 "$OUT/qemu-debug.full.log" > "$OUT/qemu-debug.log"
-          rm -f "$OUT/qemu-debug.full.log"
-          set -e
-
-      - name: Compare QEMU x86 CPU models
-        run: |
-          OUT=out/x86-i586/minimal
-          for cpu in pentium pentium2 qemu32; do
-            log="$OUT/qemu-cpu-$cpu.log"
-            set +e
-            timeout --signal=TERM --kill-after=1s 8s qemu-system-i386 \
-              -M pc -cpu "$cpu" -m 32M \
-              -kernel "$OUT/boot/bzImage" \
-              -append "earlyprintk=serial,ttyS0,115200 console=ttyS0,115200" \
-              -display none -serial stdio -monitor none -no-reboot \
-              >"$log" 2>&1
-            rc=$?
-            set -e
-            echo "cpu=$cpu rc=$rc" | tee -a "$log"
-          done
-
-      - name: Build upstream-style i586 control kernel
-        run: |
-          OUT=out/x86-i586/minimal
-          K="$OUT/work/linux-control"
-          rm -rf "$K"
-          mkdir -p "$K"
-          . ./versions.conf
-          tar -xJf "sources/linux-$LINUX_VERSION.tar.xz" -C "$K" --strip-components=1
-          make -C "$K" ARCH=x86 i386_defconfig
-          "$K/scripts/config" --file "$K/.config" --disable M686
-          "$K/scripts/config" --file "$K/.config" --enable M586
-          make -C "$K" ARCH=x86 olddefconfig >/dev/null
-          "$K/scripts/config" --file "$K/.config" --disable GCC_PLUGIN_STRUCTLEAK
-          "$K/scripts/config" --file "$K/.config" --disable GCC_PLUGIN_STRUCTLEAK_USER
-          "$K/scripts/config" --file "$K/.config" --disable GCC_PLUGIN_STRUCTLEAK_BYREF
-          "$K/scripts/config" --file "$K/.config" --disable GCC_PLUGIN_STRUCTLEAK_BYREF_ALL
-          "$K/scripts/config" --file "$K/.config" --disable GCC_PLUGIN_STACKLEAK
-          "$K/scripts/config" --file "$K/.config" --enable INIT_STACK_NONE
-          "$K/scripts/config" --file "$K/.config" --disable GCC_PLUGINS
-          grep -q '^CONFIG_M586=y$' "$K/.config"
-          grep -q '^# CONFIG_GCC_PLUGINS is not set$' "$K/.config"
-          make -C "$K" -j2 ARCH=x86 CROSS_COMPILE=i586-linux-musl- bzImage
-          cp "$K/arch/x86/boot/bzImage" "$OUT/boot/bzImage-control"
-          set +e
-          timeout --signal=TERM --kill-after=1s 12s qemu-system-i386 \
-            -M pc -cpu pentium -m 32M \
-            -kernel "$OUT/boot/bzImage-control" \
-            -append "earlyprintk=serial,ttyS0,115200 console=ttyS0,115200" \
-            -display none -serial stdio -monitor none -no-reboot \
-            >"$OUT/qemu-control-kernel.log" 2>&1
-          rc=$?
-          set -e
-          echo "control kernel rc=$rc" | tee -a "$OUT/qemu-control-kernel.log"
-          cat "$OUT/qemu-control-kernel.log"
-
-      - name: Build native-GCC i586 control kernel
-        run: |
-          OUT=out/x86-i586/minimal
-          K="$OUT/work/linux-native-control"
-          rm -rf "$K"
-          mkdir -p "$K"
-          . ./versions.conf
-          tar -xJf "sources/linux-$LINUX_VERSION.tar.xz" -C "$K" --strip-components=1
-          make -C "$K" ARCH=x86 i386_defconfig
-          "$K/scripts/config" --file "$K/.config" --disable M686
-          "$K/scripts/config" --file "$K/.config" --enable M586
-          make -C "$K" ARCH=x86 olddefconfig >/dev/null
-          "$K/scripts/config" --file "$K/.config" --disable GCC_PLUGIN_STRUCTLEAK
-          "$K/scripts/config" --file "$K/.config" --disable GCC_PLUGIN_STRUCTLEAK_USER
-          "$K/scripts/config" --file "$K/.config" --disable GCC_PLUGIN_STRUCTLEAK_BYREF
-          "$K/scripts/config" --file "$K/.config" --disable GCC_PLUGIN_STRUCTLEAK_BYREF_ALL
-          "$K/scripts/config" --file "$K/.config" --disable GCC_PLUGIN_STACKLEAK
-          "$K/scripts/config" --file "$K/.config" --enable INIT_STACK_NONE
-          "$K/scripts/config" --file "$K/.config" --disable GCC_PLUGINS
-          grep -q '^CONFIG_M586=y$' "$K/.config"
-          make -C "$K" -j2 ARCH=x86 bzImage
-          cp "$K/arch/x86/boot/bzImage" "$OUT/boot/bzImage-native-control"
-          set +e
-          timeout --signal=TERM --kill-after=1s 12s qemu-system-i386 \
-            -M pc -cpu pentium -m 32M \
-            -kernel "$OUT/boot/bzImage-native-control" \
-            -append "earlyprintk=serial,ttyS0,115200 console=ttyS0,115200" \
-            -display none -serial stdio -monitor none -no-reboot \
-            >"$OUT/qemu-native-control-kernel.log" 2>&1
-          rc=$?
-          set -e
-          echo "native control kernel rc=$rc" | tee -a "$OUT/qemu-native-control-kernel.log"
-          cat "$OUT/qemu-native-control-kernel.log"
-
       - name: Boot-test x86-i586 image via GRUB ISO
         run: |
           OUT=out/x86-i586/minimal
@@ -230,12 +120,6 @@ jobs:
             out/x86-i586/minimal/kernel.config
             out/x86-i586/minimal/kernel-config-summary.log
             out/x86-i586/minimal/bzimage-header.log
-            out/x86-i586/minimal/qemu-kernel-only.log
-            out/x86-i586/minimal/qemu-control-kernel.log
-            out/x86-i586/minimal/qemu-native-control-kernel.log
-            out/x86-i586/minimal/qemu-cpu-*.log
-            out/x86-i586/minimal/qemu-debug-head.log
-            out/x86-i586/minimal/qemu-debug.log
             out/x86-i586/minimal/grub-mkrescue.log
             out/x86-i586/minimal/qemu-grub.log
             out/x86-i586/minimal/qemu-smoke.log

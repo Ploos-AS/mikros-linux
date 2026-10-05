@@ -15,7 +15,7 @@ rm -f "$log"
 # timeout success is acceptable only if the expected userspace banner appeared.
 set +e
 timeout 20 qemu-system-i386 \
-  -M pc -cpu pentium -m 32M \
+  -M pc -cpu pentium -m 128M \
   -kernel "$KERNEL" -initrd "$INITRD" \
   -append "earlyprintk=serial,ttyS0,115200 console=ttyS0,115200 rdinit=/sbin/init" \
   -display none -serial stdio -monitor none \

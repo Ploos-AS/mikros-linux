@@ -5,11 +5,17 @@ on:
     branches: [ main ]
     paths:
       - 'scripts/build-toolchain-m68k.sh'
+      - 'scripts/build-m68k.sh'
+      - 'scripts/fetch-sources.sh'
+      - 'rootfs/**'
       - 'versions.conf'
       - '.github/workflows/m0-m68k-toolchain.yml'
   pull_request:
     paths:
       - 'scripts/build-toolchain-m68k.sh'
+      - 'scripts/build-m68k.sh'
+      - 'scripts/fetch-sources.sh'
+      - 'rootfs/**'
       - 'versions.conf'
       - '.github/workflows/m0-m68k-toolchain.yml'
   workflow_dispatch:
@@ -50,3 +56,17 @@ jobs:
           printf 'int main(void){return 0;}\n' > /tmp/mikros-m68k-probe.c
           out/toolchains/m68k/toolchain/bin/m68k-linux-uclibc-gcc -m68020 -Os /tmp/mikros-m68k-probe.c -o /tmp/mikros-m68k-probe
           file /tmp/mikros-m68k-probe
+
+      - name: Fetch pinned sources
+        run: sh ./scripts/fetch-sources.sh
+
+      - name: Build m68k minimal rootfs
+        run: sh ./scripts/build-m68k.sh
+
+      - name: Verify m68k rootfs
+        run: |
+          test -x out/m68k/minimal/rootfs/bin/busybox
+          test -x out/m68k/minimal/rootfs/sbin/init
+          grep -q 'MikrOS Linux m68k-68020 minimal' out/m68k/minimal/rootfs/etc/mikros/release
+          file out/m68k/minimal/rootfs/bin/busybox
+          gzip -dc out/m68k/minimal/boot/initramfs.cpio.gz | cpio -t | grep -q '^sbin/init$'

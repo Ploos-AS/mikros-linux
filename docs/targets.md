@@ -9,7 +9,7 @@ Tier 1 is the architecture qualification set that blocks M0 completion.
 | Target | Execution model | Minimum baseline | Initial reference | Status |
 | --- | --- | --- | --- | --- |
 | x86 32-bit | Linux/MMU | i586 | QEMU `pc` + Pentium | Qualified |
-| m68k classic | Linux/MMU | 68020 + supported MMU | 68030-class reference | Toolchain qualified; boot qualification next |
+| m68k classic | Linux/MMU | 68020 + supported MMU | QEMU `virt` / 68040 CI reference; 68020 ISA floor | Toolchain qualified; boot qualification next |
 | m68k ColdFire | Linux/no-MMU | ColdFire V2 | MCF5208-class reference | Required in M0 |
 | ARM 32-bit | Linux/MMU | ARMv6 | QEMU/reference machine TBD | Contract |
 | PowerPC 32-bit | Linux/MMU | PPC32 + MMU; exact CPU floor to be qualified | QEMU/reference machine TBD | Contract |
@@ -40,7 +40,7 @@ The x86-i586 reference is qualified with both BIOS/GRUB boot and QEMU direct-ker
 
 After x86-i586, qualification proceeds:
 
-1. classic m68k Linux/MMU;
+1. classic m68k Linux/MMU (68020 ISA floor; QEMU `virt`/68040 automated reference);
 2. ColdFire V2 Linux/no-MMU;
 3. ARMv6 Linux/MMU;
 4. PowerPC 32-bit Linux/MMU.
@@ -53,3 +53,8 @@ This order does not imply that later compatibility profiles are less important. 
 The m68k cross-toolchain is CI-qualified for the M0 68020 ISA floor. The required CI job builds the pinned Buildroot/uClibc-ng toolchain and compiles and links a probe with `-m68020`.
 
 This is toolchain qualification only. Full Tier-1 qualification still requires the minimal MikrOS userspace/root filesystem, Linux kernel configuration and reproducible reference-emulator boot to a usable console/shell.
+
+
+### m68k reference-platform note
+
+The M0 classic-m68k contract separates the minimum generated ISA from the automated emulator reference. MikrOS userspace is built for a 68020 instruction-set floor. Automated Linux boot qualification initially uses QEMU `virt`, whose Linux platform configuration is 68040-oriented. A lower-CPU real/emulated machine can be added as an additional compatibility qualification without weakening the 68020 build contract.

@@ -46,7 +46,7 @@ jobs:
 
       - name: Verify 68020 compiler
         run: |
-          out/toolchains/m68k/bin/m68k-linux-uclibc-gcc -dumpmachine
+          out/toolchains/m68k/toolchain/bin/m68k-linux-uclibc-gcc -dumpmachine
           printf 'int main(void){return 0;}\n' > /tmp/mikros-m68k-probe.c
-          out/toolchains/m68k/bin/m68k-linux-uclibc-gcc -m68020 -Os /tmp/mikros-m68k-probe.c -o /tmp/mikros-m68k-probe
+          out/toolchains/m68k/toolchain/bin/m68k-linux-uclibc-gcc -m68020 -Os /tmp/mikros-m68k-probe.c -o /tmp/mikros-m68k-probe
           file /tmp/mikros-m68k-probe

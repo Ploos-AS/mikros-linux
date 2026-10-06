@@ -27,11 +27,11 @@ tar -xjf "$busybox_tar" -C "$WORK/busybox" --strip-components=1
 
 make -C "$WORK/busybox" ARCH=m68k CROSS_COMPILE="$CROSS" allnoconfig >/dev/null
 bb="$WORK/busybox/.config"
-for s in STATIC LFS ASH SH_IS_ASH INIT FEATURE_USE_INITTAB MOUNT UMOUNT DMESG HALT POWEROFF REBOOT GETTY MDEV CAT ECHO LS CP MV RM MKDIR CHMOD CHOWN LN PS KILL SLEEP; do
+for s in STATIC LFS ASH ASH_INTERNAL_GLOB SH_IS_ASH INIT FEATURE_USE_INITTAB MOUNT UMOUNT DMESG HALT POWEROFF REBOOT GETTY MDEV CAT ECHO LS CP MV RM MKDIR CHMOD CHOWN LN PS KILL SLEEP; do
     sed -i "s/^# CONFIG_$s is not set$/CONFIG_$s=y/" "$bb"
 done
 yes "" | make -C "$WORK/busybox" ARCH=m68k CROSS_COMPILE="$CROSS" oldconfig >/dev/null || true
-for s in STATIC ASH SH_IS_ASH INIT FEATURE_USE_INITTAB CAT ECHO LS; do
+for s in STATIC ASH ASH_INTERNAL_GLOB SH_IS_ASH INIT FEATURE_USE_INITTAB CAT ECHO LS; do
     grep -q "^CONFIG_$s=y$" "$bb" || die "BusyBox config lost required CONFIG_$s"
 done
 

@@ -47,6 +47,39 @@ mkdir -p "$ROOT/dev" "$ROOT/proc" "$ROOT/sys" "$ROOT/run" "$ROOT/tmp" "$ROOT/roo
 printf 'MikrOS Linux m68k-68020 %s\n' "$PROFILE" > "$ROOT/etc/mikros/release"
 
 make -C "$WORK/linux" ARCH=m68k CROSS_COMPILE="$CROSS" virt_defconfig
+"$WORK/linux/scripts/config" --file "$WORK/linux/.config" --enable BLK_DEV_INITRD
+"$WORK/linux/scripts/config" --file "$WORK/linux/.config" --enable RD_GZIP
+make -C "$WORK/linux" ARCH=m68k CROSS_COMPILE="$CROSS" olddefconfig >/dev/null
+grep -q '^CONFIG_BLK_DEV_INITRD=y
+
+mkdir -p "$OUT/boot"
+cp "$WORK/linux/vmlinux" "$OUT/boot/vmlinux"
+(
+    cd "$ROOT"
+    find . -print0 | LC_ALL=C sort -z | cpio --null -o -H newc 2>/dev/null | gzip -9n
+) > "$OUT/boot/initramfs.cpio.gz"
+
+gzip -dc "$OUT/boot/initramfs.cpio.gz" | cpio -t 2>/dev/null | grep -q '^sbin/init$' ||
+    die "initramfs is missing sbin/init"
+file "$ROOT/bin/busybox" | tee "$OUT/busybox.file"
+sha256sum "$OUT/boot/vmlinux" "$OUT/boot/initramfs.cpio.gz" > "$OUT/SHA256SUMS"
+echo "built m68k minimal rootfs, vmlinux and initramfs"
+ "$WORK/linux/.config" || die "m68k kernel lacks initrd support"
+grep -q '^CONFIG_RD_GZIP=y
+
+mkdir -p "$OUT/boot"
+cp "$WORK/linux/vmlinux" "$OUT/boot/vmlinux"
+(
+    cd "$ROOT"
+    find . -print0 | LC_ALL=C sort -z | cpio --null -o -H newc 2>/dev/null | gzip -9n
+) > "$OUT/boot/initramfs.cpio.gz"
+
+gzip -dc "$OUT/boot/initramfs.cpio.gz" | cpio -t 2>/dev/null | grep -q '^sbin/init$' ||
+    die "initramfs is missing sbin/init"
+file "$ROOT/bin/busybox" | tee "$OUT/busybox.file"
+sha256sum "$OUT/boot/vmlinux" "$OUT/boot/initramfs.cpio.gz" > "$OUT/SHA256SUMS"
+echo "built m68k minimal rootfs, vmlinux and initramfs"
+ "$WORK/linux/.config" || die "m68k kernel lacks gzip initrd support"
 make -C "$WORK/linux" -j"$JOBS" ARCH=m68k CROSS_COMPILE="$CROSS" vmlinux
 
 mkdir -p "$OUT/boot"

@@ -9,7 +9,7 @@ Tier 1 is the architecture qualification set that blocks M0 completion.
 | Target | Execution model | Minimum baseline | Initial reference | Status |
 | --- | --- | --- | --- | --- |
 | x86 32-bit | Linux/MMU | i586 | QEMU `pc` + Pentium | Qualified |
-| m68k classic | Linux/MMU | 68020 + supported MMU | 68030-class reference | Qualification next |
+| m68k classic | Linux/MMU | 68020 + supported MMU | 68030-class reference | Toolchain qualified; boot qualification next |
 | m68k ColdFire | Linux/no-MMU | ColdFire V2 | MCF5208-class reference | Required in M0 |
 | ARM 32-bit | Linux/MMU | ARMv6 | QEMU/reference machine TBD | Contract |
 | PowerPC 32-bit | Linux/MMU | PPC32 + MMU; exact CPU floor to be qualified | QEMU/reference machine TBD | Contract |
@@ -46,3 +46,10 @@ After x86-i586, qualification proceeds:
 4. PowerPC 32-bit Linux/MMU.
 
 This order does not imply that later compatibility profiles are less important. It keeps M0 focused on proving the minimum-platform contract before expanding each architecture family.
+
+
+## m68k classic evidence
+
+The m68k cross-toolchain is CI-qualified for the M0 68020 ISA floor. The required CI job builds the pinned Buildroot/uClibc-ng toolchain and compiles and links a probe with `-m68020`.
+
+This is toolchain qualification only. Full Tier-1 qualification still requires the minimal MikrOS userspace/root filesystem, Linux kernel configuration and reproducible reference-emulator boot to a usable console/shell.

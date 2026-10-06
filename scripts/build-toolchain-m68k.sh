@@ -5,7 +5,7 @@ OUT=${OUT:-out/toolchains/m68k}
 JOBS=${JOBS:-2}
 BUILDROOT_VERSION=2026.08
 BUILD="$OUT/buildroot-$BUILDROOT_VERSION"
-PREFIX_ABS="$(pwd)/$OUT/cross"
+PREFIX_ABS="$(pwd)/$OUT/toolchain"
 
 rm -rf "$BUILD" "$PREFIX_ABS"
 mkdir -p "$OUT"
@@ -38,20 +38,19 @@ make -C "$BUILD" O="$(pwd)/$OUT/work" -j"$JOBS" toolchain
 mkdir -p "$PREFIX_ABS"
 cp -a "$OUT/work/host/." "$PREFIX_ABS/"
 
-mkdir -p "$OUT/bin"
-cc=$(find "$PREFIX_ABS/bin" -maxdepth 1 -type f -o -type l | grep '/m68k-.*-linux-uclibc.*-gcc$' | head -n1)
+cc=$(find "$PREFIX_ABS/bin" -maxdepth 1 \( -type f -o -type l \) -name 'm68k-*-linux-uclibc*-gcc' | head -n1)
 test -n "$cc" || { echo "m68k uClibc-ng compiler not found" >&2; exit 1; }
 prefix=${cc%gcc}
 for p in "${prefix}"*; do
     [ -e "$p" ] || continue
     n=${p##*/}
     n=${n#${prefix##*/}}
-    ln -sf "../cross/bin/${p##*/}" "$OUT/bin/m68k-linux-uclibc-$n"
+    ln -sf "${p##*/}" "$PREFIX_ABS/bin/m68k-linux-uclibc-$n"
 done
 
-test -x "$OUT/bin/m68k-linux-uclibc-gcc"
-"$OUT/bin/m68k-linux-uclibc-gcc" -dumpmachine
+test -x "$PREFIX_ABS/bin/m68k-linux-uclibc-gcc"
+"$PREFIX_ABS/bin/m68k-linux-uclibc-gcc" -dumpmachine
 printf 'int main(void){return 0;}\n' > "$OUT/probe.c"
-"$OUT/bin/m68k-linux-uclibc-gcc" -m68020 -Os "$OUT/probe.c" -o "$OUT/probe"
+"$PREFIX_ABS/bin/m68k-linux-uclibc-gcc" -m68020 -Os "$OUT/probe.c" -o "$OUT/probe"
 file "$OUT/probe"
 echo "M0 m68k/68020 uClibc-ng cross-toolchain prepared in $PREFIX_ABS"

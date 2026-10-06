@@ -48,9 +48,12 @@ printf 'MikrOS Linux m68k-68020 %s\n' "$PROFILE" > "$ROOT/etc/mikros/release"
 
 make -C "$WORK/linux" ARCH=m68k CROSS_COMPILE="$CROSS" virt_defconfig
 "$WORK/linux/scripts/config" --file "$WORK/linux/.config" --enable BLK_DEV_INITRD
-"$WORK/linux/scripts/config" --file "$WORK/linux/.config" --enable RD_GZIP
+"$WORK/linux/scripts/config" --file "$WORK/linux/.config" --enable BLK_DEV_RAM
+"$WORK/linux/scripts/config" --file "$WORK/linux/.config" --set-val BLK_DEV_RAM_SIZE 16384
 make -C "$WORK/linux" ARCH=m68k CROSS_COMPILE="$CROSS" olddefconfig >/dev/null
-grep -q '^CONFIG_BLK_DEV_INITRD=y
+grep -q '^CONFIG_BLK_DEV_INITRD=y$' "$WORK/linux/.config" || die "m68k kernel lacks initrd support"
+grep -q '^CONFIG_BLK_DEV_RAM=y$' "$WORK/linux/.config" || die "m68k kernel lacks ramdisk support"
+make -C "$WORK/linux" -j"$JOBS" ARCH=m68k CROSS_COMPILE="$CROSS" vmlinux
 
 mkdir -p "$OUT/boot"
 cp "$WORK/linux/vmlinux" "$OUT/boot/vmlinux"

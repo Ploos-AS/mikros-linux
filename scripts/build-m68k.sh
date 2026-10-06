@@ -19,11 +19,14 @@ for t in make tar bzip2 cpio gzip; do need "$t"; done
 [ -x "${CROSS}gcc" ] || die "missing m68k toolchain; run scripts/build-toolchain-m68k.sh first"
 
 busybox_tar="$SRC/busybox-$BUSYBOX_VERSION.tar.bz2"
+linux_tar="$SRC/linux-$LINUX_VERSION.tar.xz"
 [ -f "$busybox_tar" ] || die "run scripts/fetch-sources.sh first"
+[ -f "$linux_tar" ] || die "run scripts/fetch-sources.sh first"
 
-rm -rf "$WORK/busybox" "$ROOT"
-mkdir -p "$WORK/busybox" "$ROOT"
+rm -rf "$WORK/busybox" "$WORK/linux" "$ROOT"
+mkdir -p "$WORK/busybox" "$WORK/linux" "$ROOT"
 tar -xjf "$busybox_tar" -C "$WORK/busybox" --strip-components=1
+tar -xJf "$linux_tar" -C "$WORK/linux" --strip-components=1
 
 make -C "$WORK/busybox" ARCH=m68k CROSS_COMPILE="$CROSS" allnoconfig >/dev/null
 bb="$WORK/busybox/.config"
@@ -43,7 +46,11 @@ chmod +x "$ROOT/etc/init.d/rcS"
 mkdir -p "$ROOT/dev" "$ROOT/proc" "$ROOT/sys" "$ROOT/run" "$ROOT/tmp" "$ROOT/root" "$ROOT/etc/mikros"
 printf 'MikrOS Linux m68k-68020 %s\n' "$PROFILE" > "$ROOT/etc/mikros/release"
 
+make -C "$WORK/linux" ARCH=m68k CROSS_COMPILE="$CROSS" virt_defconfig
+make -C "$WORK/linux" -j"$JOBS" ARCH=m68k CROSS_COMPILE="$CROSS" vmlinux
+
 mkdir -p "$OUT/boot"
+cp "$WORK/linux/vmlinux" "$OUT/boot/vmlinux"
 (
     cd "$ROOT"
     find . -print0 | LC_ALL=C sort -z | cpio --null -o -H newc 2>/dev/null | gzip -9n
@@ -52,5 +59,5 @@ mkdir -p "$OUT/boot"
 gzip -dc "$OUT/boot/initramfs.cpio.gz" | cpio -t 2>/dev/null | grep -q '^sbin/init$' ||
     die "initramfs is missing sbin/init"
 file "$ROOT/bin/busybox" | tee "$OUT/busybox.file"
-sha256sum "$OUT/boot/initramfs.cpio.gz" > "$OUT/SHA256SUMS"
-echo "built m68k/68020 minimal rootfs and initramfs"
+sha256sum "$OUT/boot/vmlinux" "$OUT/boot/initramfs.cpio.gz" > "$OUT/SHA256SUMS"
+echo "built m68k minimal rootfs, vmlinux and initramfs"

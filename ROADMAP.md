@@ -8,7 +8,7 @@
 - [ ] Determine minimum CPU/MMU requirements for each target, explicitly supporting both Linux/MMU and Linux/no-MMU where practical.
 - [ ] Define Linux/no-MMU (uClinux) as a first-class MikrOS Linux profile rather than a separate repository.
 - [ ] Qualify ColdFire V2/no-MMU with an MCF5208-class reference target and reproducible serial boot evidence.
-- [ ] Coordinate the MCF5208-class target with AmiVM ColdFire qualification and use QEMU as a differential/reference platform where applicable.
+- [ ] Coordinate the MCF5208-class target with mVM ColdFire qualification and use QEMU as a differential/reference platform where applicable.
 - [ ] Determine minimum practical RAM and storage targets.
 - [ ] Select libc/userspace strategy.
 - [ ] Select init and base command strategy.
@@ -44,7 +44,7 @@ Introduce a deliberately small package recipe/build model. Do not inherit a heav
 - Qualify process, filesystem, console, networking and package/build behavior under no-MMU constraints.
 - Document no-MMU-specific limitations without forking the MikrOS user experience unnecessarily.
 - Reuse the shared MikrOS package/repository/build model wherever technically practical.
-- Add AmiVM ColdFire as a qualification runtime when its MCF5208 profile is available.
+- Add mVM ColdFire as a qualification runtime when its MCF5208 profile is available.
 - Cross-check the reference ColdFire image against QEMU where applicable.
 
 ### M4 exit criteria

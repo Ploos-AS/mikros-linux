@@ -7,12 +7,16 @@ on:
       - 'scripts/build-toolchain-coldfire-v2.sh'
       - 'targets/m68k-coldfire-v2.conf'
       - 'versions.conf'
+      - 'scripts/build-coldfire-v2.sh'
+      - 'scripts/fetch-sources.sh'
       - '.github/workflows/m0-coldfire-v2.yml'
   pull_request:
     paths:
       - 'scripts/build-toolchain-coldfire-v2.sh'
       - 'targets/m68k-coldfire-v2.conf'
       - 'versions.conf'
+      - 'scripts/build-coldfire-v2.sh'
+      - 'scripts/fetch-sources.sh'
       - '.github/workflows/m0-coldfire-v2.yml'
   workflow_dispatch:
 
@@ -45,6 +49,12 @@ jobs:
         with:
           path: out/toolchains/m68k-coldfire-v2
           key: coldfire-v2-uclibc-${{ runner.os }}-${{ hashFiles('versions.conf', 'scripts/build-toolchain-coldfire-v2.sh') }}
+
+      - name: Fetch pinned sources
+        run: sh ./scripts/fetch-sources.sh
+
+      - name: Build MCF5208 no-MMU kernel
+        run: sh ./scripts/build-coldfire-v2.sh
 
       - name: Verify MCF5208 compiler
         run: |

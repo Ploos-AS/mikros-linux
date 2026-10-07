@@ -43,7 +43,7 @@ make -C "$BUILD" O="$(pwd)/$OUT/work" -j"$JOBS" toolchain
 mkdir -p "$PREFIX_ABS"
 cp -a "$OUT/work/host/." "$PREFIX_ABS/"
 
-cc=$(find "$PREFIX_ABS/bin" -maxdepth 1 \( -type f -o -type l \) -name 'm68k-*-linux-uclibc*-gcc' | head -n1)
+cc=$(find "$PREFIX_ABS/bin" -maxdepth 1 \( -type f -o -type l \) -name 'm68k-*-uclinux-uclibc*-gcc' | head -n1)
 test -n "$cc" || { echo "ColdFire uClibC-ng compiler not found" >&2; exit 1; }
 prefix=${cc%gcc}
 for p in "${prefix}"*; do

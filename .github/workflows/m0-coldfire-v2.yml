@@ -56,10 +56,14 @@ jobs:
       - name: Build MCF5208 no-MMU kernel
         run: sh ./scripts/build-coldfire-v2.sh
 
-      - name: Verify MCF5208 compiler
+      - name: Verify MCF5208 compiler and FLAT toolchain
         run: |
-          CC=out/toolchains/m68k-coldfire-v2/toolchain/bin/m68k-linux-uclibc-gcc
+          TC=out/toolchains/m68k-coldfire-v2/toolchain
+          CC="$TC/bin/m68k-linux-uclibc-gcc"
           "$CC" -dumpmachine
           printf 'int main(void){return 0;}\n' > /tmp/mikros-cf-probe.c
           "$CC" -mcpu=5208 -Os /tmp/mikros-cf-probe.c -o /tmp/mikros-cf-probe
           file /tmp/mikros-cf-probe
+          test -x "$TC/bin/elf2flt"
+          "$TC/bin/elf2flt" --help >/dev/null 2>&1 || test $? -le 1
+          find "$TC/bin" -maxdepth 1 -type f -o -type l | grep -E '(elf2flt|flthdr)' | sort

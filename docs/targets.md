@@ -10,7 +10,7 @@ Tier 1 is the architecture qualification set that blocks M0 completion.
 | --- | --- | --- | --- | --- |
 | x86 32-bit | Linux/MMU | i586 | QEMU `pc` + Pentium | Qualified |
 | m68k classic | Linux/MMU | 68020 + supported MMU | QEMU `virt` / 68040 CI reference; 68020 ISA floor | Boot-qualified in CI |
-| m68k ColdFire | Linux/no-MMU | ColdFire V2 | MCF5208-class reference | Required in M0 |
+| m68k ColdFire | Linux/no-MMU | ColdFire V2 | QEMU `mcf5208evb` / MCF5208 | Toolchain qualified; boot qualification next |
 | ARM 32-bit | Linux/MMU | ARMv6 | QEMU/reference machine TBD | Contract |
 | PowerPC 32-bit | Linux/MMU | PPC32 + MMU; exact CPU floor to be qualified | QEMU/reference machine TBD | Contract |
 
@@ -54,6 +54,12 @@ The m68k cross-toolchain is CI-qualified for the M0 68020 ISA floor. The require
 
 The classic m68k reference is now boot-qualified in CI. The required gate builds the minimal static BusyBox/uClibC userspace and initramfs, builds the pinned Linux kernel for QEMU `virt`, boots the image under `qemu-system-m68k`, and requires the `MikrOS Linux` userspace banner.
 
+
+### ColdFire V2 evidence
+
+The M0 ColdFire V2 reference toolchain is CI-qualified as a distinct Linux/no-MMU target. Buildroot selects `BR2_m68k_cf5208`, uClibC-ng and the uClinux ABI; CI rejects an accidentally enabled MMU and compiles/links an MCF5208 probe with `-mcpu=5208`.
+
+Full target qualification still requires the pinned no-MMU kernel, minimal MikrOS userspace/root filesystem and reproducible QEMU `mcf5208evb` serial boot.
 
 ### m68k reference-platform note
 

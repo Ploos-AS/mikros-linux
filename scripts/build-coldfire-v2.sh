@@ -6,6 +6,7 @@ set -eu
 OUT=${OUT:-out/m68k-coldfire-v2/minimal}
 JOBS=${JOBS:-2}
 TC=${TC:-out/toolchains/m68k-coldfire-v2/toolchain}
+TC="$(cd "$TC" && pwd)"
 CROSS="$TC/bin/m68k-linux-uclibc-"
 WORK="$OUT/work"
 

@@ -36,22 +36,20 @@ bb="$WORK/busybox/.config"
 for opt in STATIC ASH SH_IS_ASH CAT ECHO LS; do
     sed -i "s/^# CONFIG_$opt is not set$/CONFIG_$opt=y/" "$bb"
 done
-sed -i "s/^CONFIG_LFS=y$/# CONFIG_LFS is not set/" "$bb"
-# Keep libc off_t and BusyBox uoff_t consistent for the uClinux ABI.
-sed -i "s/^CONFIG_LFS=y$/# CONFIG_LFS is not set/" "$bb"
+sed -i "s/^# CONFIG_LFS is not set$/CONFIG_LFS=y/" "$bb"
 yes "" | make -C "$WORK/busybox" ARCH=m68k CROSS_COMPILE="$CROSS" oldconfig >/dev/null || true
-grep -q "^# CONFIG_LFS is not set$" "$bb" || { echo "BusyBox LFS must be disabled" >&2; exit 1; }
+grep -q "^CONFIG_LFS=y$" "$bb" || { echo "BusyBox LFS must be enabled for 64-bit off_t" >&2; exit 1; }
 for opt in STATIC ASH SH_IS_ASH CAT ECHO LS; do
     grep -q "^CONFIG_$opt=y$" "$bb" || { echo "BusyBox missing $opt" >&2; exit 1; }
 done
 # ABI diagnostic: fail early with concrete type widths, not a BusyBox typedef guess.
 cat > "$OUT/offt-probe.c" <<'EOF'
 #include <sys/types.h>
-typedef char check_off_t[(sizeof(off_t) == 4) ? 1 : -1];
+typedef char check_off_t[(sizeof(off_t) == 8) ? 1 : -1];
 int main(void) { return sizeof(off_t); }
 EOF
 "${CROSS}gcc" -mcpu=5208 -c "$OUT/offt-probe.c" -o "$OUT/offt-probe.o"
-printf 'BusyBox LFS setting: '
+printf 'BusyBox LFS setting (64-bit off_t): '
 grep '^# CONFIG_LFS is not set CROSS_COMPILE="$CROSS" CFLAGS_busybox="-mcpu=5208"
 make -C "$WORK/busybox" ARCH=m68k CROSS_COMPILE="$CROSS" CONFIG_PREFIX="$OUT/rootfs" install
 file "$OUT/rootfs/bin/busybox" | tee "$OUT/boot/busybox.file"

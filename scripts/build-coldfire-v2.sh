@@ -24,6 +24,10 @@ grep -q '^CONFIG_SERIAL_MCF_CONSOLE=y$' "$WORK/linux/.config" || { echo "MCF5208
 
 make -C "$WORK/linux" -j"$JOBS" ARCH=m68k CROSS_COMPILE="$CROSS" vmlinux
 cp "$WORK/linux/vmlinux" "$OUT/boot/vmlinux"
+printf '#include <unistd.h>\nint main(void) { static const char msg[] = "MikrOS ColdFire V2\\n"; return write(1, msg, sizeof(msg)-1) < 0; }\n' > "$OUT/hello.c"
+"${CROSS}gcc" -mcpu=5208 -Os -static "$OUT/hello.c" -o "$OUT/boot/hello"
+file "$OUT/boot/hello" | tee "$OUT/boot/hello.file"
+grep -q 'BFLT executable' "$OUT/boot/hello.file" || { echo "ColdFire userspace probe is not BFLT" >&2; exit 1; }
 file "$OUT/boot/vmlinux"
 sha256sum "$OUT/boot/vmlinux" > "$OUT/boot/vmlinux.sha256"
 echo "built MCF5208 no-MMU kernel"

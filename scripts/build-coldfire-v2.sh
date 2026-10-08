@@ -69,8 +69,8 @@ grep -E '^#define CONFIG_(ASH|HUSH)|^#define ENABLE_(ASH|HUSH)' "$WORK/busybox/i
 sed -n '1,100p' "$WORK/busybox/shell/Makefile" || true
 printf 'BusyBox LFS setting (64-bit off_t): '
 grep '^CONFIG_LFS=y$' "$bb"
-make -C "$WORK/busybox" -j"$JOBS" ARCH=m68k CROSS_COMPILE="$CROSS" CFLAGS_busybox="-mcpu=5208" V=1
-make -C "$WORK/busybox" ARCH=m68k CROSS_COMPILE="$CROSS" CONFIG_PREFIX="$OUT/rootfs" install
+make -C "$WORK/busybox" -j"$JOBS" ARCH=m68k CROSS_COMPILE="$CROSS" CFLAGS_busybox="-mcpu=5208" SKIP_STRIP=y V=1
+make -C "$WORK/busybox" ARCH=m68k CROSS_COMPILE="$CROSS" CONFIG_PREFIX="$OUT/rootfs" SKIP_STRIP=y install
 # Ensure /bin/sh resolves to the NOMMU-capable hush applet.
 ln -sf busybox "$OUT/rootfs/bin/sh"
 file "$OUT/rootfs/bin/busybox" | tee "$OUT/boot/busybox.file"

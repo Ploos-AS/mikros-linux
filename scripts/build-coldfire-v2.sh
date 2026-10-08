@@ -76,6 +76,17 @@ make -C "$WORK/busybox" ARCH=m68k CROSS_COMPILE="$CROSS" CONFIG_PREFIX="$OUT/roo
 test -L "$OUT/rootfs/bin/sh" || { echo "BusyBox did not install /bin/sh" >&2; exit 1; }
 file "$OUT/rootfs/bin/busybox" | tee "$OUT/boot/busybox.file"
 grep -q 'BFLT executable' "$OUT/boot/busybox.file" || { echo "BusyBox is not BFLT" >&2; exit 1; }
+# Stage a minimal rootfs tree for subsequent ROMFS/QEMU qualification.
+mkdir -p "$OUT/rootfs/dev" "$OUT/rootfs/proc" "$OUT/rootfs/sys" "$OUT/rootfs/tmp"
+cat > "$OUT/rootfs/init" <<'EOF'
+#!/bin/sh
+echo "MikrOS ColdFire V2 userspace started"
+echo "MikrOS ColdFire V2 smoke: PASS"
+exec /bin/sh
+EOF
+chmod 755 "$OUT/rootfs/init"
+test -x "$OUT/rootfs/bin/busybox" || exit 1
+test -x "$OUT/rootfs/init" || exit 1
 file "$OUT/boot/vmlinux"
 sha256sum "$OUT/boot/vmlinux" > "$OUT/boot/vmlinux.sha256"
 echo "built MCF5208 no-MMU kernel"

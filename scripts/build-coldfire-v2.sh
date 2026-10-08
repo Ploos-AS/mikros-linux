@@ -37,7 +37,10 @@ for opt in STATIC HUSH CAT ECHO LS; do
     sed -i "s/^# CONFIG_$opt is not set$/CONFIG_$opt=y/" "$bb"
 done
 sed -i "s/^# CONFIG_LFS is not set$/CONFIG_LFS=y/" "$bb"
+# BusyBox defaults can select ash via the shell-choice dependency even with hush enabled.
+sed -i "s/^CONFIG_ASH=y$/# CONFIG_ASH is not set/" "$bb"
 make -C "$WORK/busybox" ARCH=m68k CROSS_COMPILE="$CROSS" oldconfig </dev/null >/dev/null
+grep -q "^# CONFIG_ASH is not set$" "$bb" || { echo "BusyBox ash must be disabled on no-MMU" >&2; exit 1; }
 grep -q "^CONFIG_LFS=y$" "$bb" || { echo "BusyBox LFS must be enabled for 64-bit off_t" >&2; exit 1; }
 for opt in STATIC HUSH CAT ECHO LS; do
     grep -q "^CONFIG_$opt=y$" "$bb" || { echo "BusyBox missing $opt" >&2; exit 1; }

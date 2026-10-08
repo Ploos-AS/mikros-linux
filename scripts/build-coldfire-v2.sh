@@ -50,14 +50,7 @@ int main(void) { return sizeof(off_t); }
 EOF
 "${CROSS}gcc" -mcpu=5208 -c "$OUT/offt-probe.c" -o "$OUT/offt-probe.o"
 printf 'BusyBox LFS setting (64-bit off_t): '
-grep '^# CONFIG_LFS is not set CROSS_COMPILE="$CROSS" CFLAGS_busybox="-mcpu=5208"
-make -C "$WORK/busybox" ARCH=m68k CROSS_COMPILE="$CROSS" CONFIG_PREFIX="$OUT/rootfs" install
-file "$OUT/rootfs/bin/busybox" | tee "$OUT/boot/busybox.file"
-grep -q 'BFLT executable' "$OUT/boot/busybox.file" || { echo "BusyBox is not BFLT" >&2; exit 1; }
-file "$OUT/boot/vmlinux"
-sha256sum "$OUT/boot/vmlinux" > "$OUT/boot/vmlinux.sha256"
-echo "built MCF5208 no-MMU kernel"
- "$bb"
+grep '^CONFIG_LFS=y$' "$bb"
 make -C "$WORK/busybox" -j"$JOBS" ARCH=m68k CROSS_COMPILE="$CROSS" CFLAGS_busybox="-mcpu=5208"
 make -C "$WORK/busybox" ARCH=m68k CROSS_COMPILE="$CROSS" CONFIG_PREFIX="$OUT/rootfs" install
 file "$OUT/rootfs/bin/busybox" | tee "$OUT/boot/busybox.file"

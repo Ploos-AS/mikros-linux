@@ -33,13 +33,13 @@ mkdir -p "$WORK/busybox" "$OUT/rootfs"
 tar -xjf "sources/busybox-$BUSYBOX_VERSION.tar.bz2" -C "$WORK/busybox" --strip-components=1
 make -C "$WORK/busybox" ARCH=m68k CROSS_COMPILE="$CROSS" allnoconfig >/dev/null
 bb="$WORK/busybox/.config"
-for opt in STATIC HUSH SH_IS_HUSH CAT ECHO LS; do
+for opt in STATIC HUSH CAT ECHO LS; do
     sed -i "s/^# CONFIG_$opt is not set$/CONFIG_$opt=y/" "$bb"
 done
 sed -i "s/^# CONFIG_LFS is not set$/CONFIG_LFS=y/" "$bb"
-yes "" | make -C "$WORK/busybox" ARCH=m68k CROSS_COMPILE="$CROSS" oldconfig >/dev/null || true
+make -C "$WORK/busybox" ARCH=m68k CROSS_COMPILE="$CROSS" oldconfig </dev/null >/dev/null
 grep -q "^CONFIG_LFS=y$" "$bb" || { echo "BusyBox LFS must be enabled for 64-bit off_t" >&2; exit 1; }
-for opt in STATIC HUSH SH_IS_HUSH CAT ECHO LS; do
+for opt in STATIC HUSH CAT ECHO LS; do
     grep -q "^CONFIG_$opt=y$" "$bb" || { echo "BusyBox missing $opt" >&2; exit 1; }
 done
 # ABI diagnostic: fail early with concrete type widths, not a BusyBox typedef guess.
@@ -53,6 +53,8 @@ printf 'BusyBox LFS setting (64-bit off_t): '
 grep '^CONFIG_LFS=y$' "$bb"
 make -C "$WORK/busybox" -j"$JOBS" ARCH=m68k CROSS_COMPILE="$CROSS" CFLAGS_busybox="-mcpu=5208"
 make -C "$WORK/busybox" ARCH=m68k CROSS_COMPILE="$CROSS" CONFIG_PREFIX="$OUT/rootfs" install
+# Ensure /bin/sh resolves to the NOMMU-capable hush applet.
+ln -sf busybox "$OUT/rootfs/bin/sh"
 file "$OUT/rootfs/bin/busybox" | tee "$OUT/boot/busybox.file"
 grep -q 'BFLT executable' "$OUT/boot/busybox.file" || { echo "BusyBox is not BFLT" >&2; exit 1; }
 file "$OUT/boot/vmlinux"

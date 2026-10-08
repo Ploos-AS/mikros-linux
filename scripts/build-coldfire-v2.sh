@@ -33,13 +33,13 @@ mkdir -p "$WORK/busybox" "$OUT/rootfs"
 tar -xjf "sources/busybox-$BUSYBOX_VERSION.tar.bz2" -C "$WORK/busybox" --strip-components=1
 make -C "$WORK/busybox" ARCH=m68k CROSS_COMPILE="$CROSS" allnoconfig >/dev/null
 bb="$WORK/busybox/.config"
-for opt in STATIC ASH SH_IS_ASH CAT ECHO LS; do
+for opt in STATIC HUSH SH_IS_HUSH CAT ECHO LS; do
     sed -i "s/^# CONFIG_$opt is not set$/CONFIG_$opt=y/" "$bb"
 done
 sed -i "s/^# CONFIG_LFS is not set$/CONFIG_LFS=y/" "$bb"
 yes "" | make -C "$WORK/busybox" ARCH=m68k CROSS_COMPILE="$CROSS" oldconfig >/dev/null || true
 grep -q "^CONFIG_LFS=y$" "$bb" || { echo "BusyBox LFS must be enabled for 64-bit off_t" >&2; exit 1; }
-for opt in STATIC ASH SH_IS_ASH CAT ECHO LS; do
+for opt in STATIC HUSH SH_IS_HUSH CAT ECHO LS; do
     grep -q "^CONFIG_$opt=y$" "$bb" || { echo "BusyBox missing $opt" >&2; exit 1; }
 done
 # ABI diagnostic: fail early with concrete type widths, not a BusyBox typedef guess.

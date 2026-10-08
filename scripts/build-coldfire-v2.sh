@@ -58,9 +58,14 @@ typedef char check_off_t[(sizeof(off_t) == 8) ? 1 : -1];
 int main(void) { return sizeof(off_t); }
 EOF
 "${CROSS}gcc" -mcpu=5208 -c "$OUT/offt-probe.c" -o "$OUT/offt-probe.o"
+echo "BusyBox shell configuration diagnostics:"
+grep -E '^(# )?CONFIG_(ASH|HUSH|SH_IS_ASH|SH_IS_HUSH)' "$bb" || true
+grep -E '^(# )?CONFIG_(ASH|HUSH|SH_IS_ASH|SH_IS_HUSH)' "$WORK/busybox/include/config/auto.conf" || true
+grep -E '^#define CONFIG_(ASH|HUSH)|^#define ENABLE_(ASH|HUSH)' "$WORK/busybox/include/autoconf.h" || true
+sed -n '1,100p' "$WORK/busybox/shell/Makefile" || true
 printf 'BusyBox LFS setting (64-bit off_t): '
 grep '^CONFIG_LFS=y$' "$bb"
-make -C "$WORK/busybox" -j"$JOBS" ARCH=m68k CROSS_COMPILE="$CROSS" CFLAGS_busybox="-mcpu=5208"
+make -C "$WORK/busybox" -j"$JOBS" ARCH=m68k CROSS_COMPILE="$CROSS" CFLAGS_busybox="-mcpu=5208" V=1
 make -C "$WORK/busybox" ARCH=m68k CROSS_COMPILE="$CROSS" CONFIG_PREFIX="$OUT/rootfs" install
 # Ensure /bin/sh resolves to the NOMMU-capable hush applet.
 ln -sf busybox "$OUT/rootfs/bin/sh"

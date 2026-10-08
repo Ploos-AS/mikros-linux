@@ -8,6 +8,7 @@ JOBS=${JOBS:-2}
 TC=${TC:-out/toolchains/m68k-coldfire-v2/toolchain}
 TC="$(cd "$TC" && pwd)"
 CROSS="$TC/bin/m68k-linux-uclibc-"
+OUT="$(mkdir -p "$OUT" && cd "$OUT" && pwd)"
 WORK="$OUT/work"
 
 test -x "${CROSS}gcc" || { echo "ColdFire toolchain missing: ${CROSS}gcc" >&2; exit 1; }
@@ -71,8 +72,8 @@ printf 'BusyBox LFS setting (64-bit off_t): '
 grep '^CONFIG_LFS=y$' "$bb"
 make -C "$WORK/busybox" -j"$JOBS" ARCH=m68k CROSS_COMPILE="$CROSS" CFLAGS_busybox="-mcpu=5208" SKIP_STRIP=y V=1
 make -C "$WORK/busybox" ARCH=m68k CROSS_COMPILE="$CROSS" CONFIG_PREFIX="$OUT/rootfs" SKIP_STRIP=y install
-# Ensure /bin/sh resolves to the NOMMU-capable hush applet.
-ln -sf busybox "$OUT/rootfs/bin/sh"
+# BusyBox installs /bin/sh itself; verify the link instead of overwriting it.
+test -L "$OUT/rootfs/bin/sh" || { echo "BusyBox did not install /bin/sh" >&2; exit 1; }
 file "$OUT/rootfs/bin/busybox" | tee "$OUT/boot/busybox.file"
 grep -q 'BFLT executable' "$OUT/boot/busybox.file" || { echo "BusyBox is not BFLT" >&2; exit 1; }
 file "$OUT/boot/vmlinux"

@@ -44,6 +44,22 @@ grep -q "^# CONFIG_LFS is not set$" "$bb" || { echo "BusyBox LFS must be disable
 for opt in STATIC ASH SH_IS_ASH CAT ECHO LS; do
     grep -q "^CONFIG_$opt=y$" "$bb" || { echo "BusyBox missing $opt" >&2; exit 1; }
 done
+# ABI diagnostic: fail early with concrete type widths, not a BusyBox typedef guess.
+cat > "$OUT/offt-probe.c" <<'EOF'
+#include <sys/types.h>
+typedef char check_off_t[(sizeof(off_t) == 4) ? 1 : -1];
+int main(void) { return sizeof(off_t); }
+EOF
+"${CROSS}gcc" -mcpu=5208 -c "$OUT/offt-probe.c" -o "$OUT/offt-probe.o"
+printf 'BusyBox LFS setting: '
+grep '^# CONFIG_LFS is not set CROSS_COMPILE="$CROSS" CFLAGS_busybox="-mcpu=5208"
+make -C "$WORK/busybox" ARCH=m68k CROSS_COMPILE="$CROSS" CONFIG_PREFIX="$OUT/rootfs" install
+file "$OUT/rootfs/bin/busybox" | tee "$OUT/boot/busybox.file"
+grep -q 'BFLT executable' "$OUT/boot/busybox.file" || { echo "BusyBox is not BFLT" >&2; exit 1; }
+file "$OUT/boot/vmlinux"
+sha256sum "$OUT/boot/vmlinux" > "$OUT/boot/vmlinux.sha256"
+echo "built MCF5208 no-MMU kernel"
+ "$bb"
 make -C "$WORK/busybox" -j"$JOBS" ARCH=m68k CROSS_COMPILE="$CROSS" CFLAGS_busybox="-mcpu=5208"
 make -C "$WORK/busybox" ARCH=m68k CROSS_COMPILE="$CROSS" CONFIG_PREFIX="$OUT/rootfs" install
 file "$OUT/rootfs/bin/busybox" | tee "$OUT/boot/busybox.file"

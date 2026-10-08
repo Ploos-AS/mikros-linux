@@ -30,7 +30,7 @@ jobs:
       - name: Install host tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential curl xz-utils bzip2 cpio file rsync bc genromfs
+          sudo apt-get install -y build-essential curl xz-utils bzip2 cpio file rsync bc genromfs qemu-system-misc
 
       - name: Cache ColdFire V2 toolchain
         id: toolchain-cache
@@ -65,3 +65,10 @@ jobs:
           "$CC" -mcpu=5208 -Os /tmp/mikros-cf-probe.c -o /tmp/mikros-cf-probe
           file /tmp/mikros-cf-probe
           file /tmp/mikros-cf-probe | grep -q "BFLT executable"
+
+      - name: Smoke boot MCF5208 kernel in QEMU
+        run: |
+          set -eu
+          timeout 25s qemu-system-m68k -M mcf5208evb -cpu m5208 -kernel out/m68k-coldfire-v2/minimal/boot/vmlinux -nographic -monitor none > /tmp/mcf5208-boot.log 2>&1 || rc=$?
+          cat /tmp/mcf5208-boot.log
+          grep -Eq "Linux version|Booting Linux" /tmp/mcf5208-boot.log || { echo "ColdFire kernel did not reach Linux boot banner" >&2; exit 1; }

@@ -92,6 +92,11 @@ command -v genromfs >/dev/null 2>&1 || { echo "genromfs is required" >&2; exit 1
 genromfs -f "$OUT/boot/rootfs.romfs" -d "$OUT/rootfs" -V MIKROS
 file "$OUT/boot/rootfs.romfs"
 sha256sum "$OUT/boot/rootfs.romfs" > "$OUT/boot/rootfs.romfs.sha256"
+# Build a reproducible initramfs archive as the next boot-test input.
+command -v cpio >/dev/null 2>&1 || { echo "cpio is required" >&2; exit 1; }
+( cd "$OUT/rootfs" && find . -print | LC_ALL=C sort | cpio --quiet -o -H newc ) > "$OUT/boot/rootfs.cpio"
+test -s "$OUT/boot/rootfs.cpio" || { echo "empty initramfs" >&2; exit 1; }
+sha256sum "$OUT/boot/rootfs.cpio" > "$OUT/boot/rootfs.cpio.sha256"
 file "$OUT/boot/vmlinux"
 sha256sum "$OUT/boot/vmlinux" > "$OUT/boot/vmlinux.sha256"
 echo "built MCF5208 no-MMU kernel"

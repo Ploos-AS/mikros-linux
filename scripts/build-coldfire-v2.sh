@@ -36,7 +36,8 @@ bb="$WORK/busybox/.config"
 for opt in STATIC ASH SH_IS_ASH CAT ECHO LS; do
     sed -i "s/^# CONFIG_$opt is not set$/CONFIG_$opt=y/" "$bb"
 done
-yes "" | make -C "$WORK/busybox" ARCH=m68k CROSS_COMPILE="$CROSS" oldconfig >/dev/null || true
+sed -i "s/^CONFIG_LFS=y$/# CONFIG_LFS is not set/" "$bb"
+make -C "$WORK/busybox" ARCH=m68k CROSS_COMPILE="$CROSS" olddefconfig >/dev/null
 for opt in STATIC ASH SH_IS_ASH CAT ECHO LS; do
     grep -q "^CONFIG_$opt=y$" "$bb" || { echo "BusyBox missing $opt" >&2; exit 1; }
 done

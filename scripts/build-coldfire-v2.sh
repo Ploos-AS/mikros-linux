@@ -87,6 +87,11 @@ EOF
 chmod 755 "$OUT/rootfs/init"
 test -x "$OUT/rootfs/bin/busybox" || exit 1
 test -x "$OUT/rootfs/init" || exit 1
+# Package the minimal rootfs as ROMFS for the MCF5208 MTD-root profile.
+command -v genromfs >/dev/null 2>&1 || { echo "genromfs is required" >&2; exit 1; }
+genromfs -f "$OUT/boot/rootfs.romfs" -d "$OUT/rootfs" -V MIKROS
+file "$OUT/boot/rootfs.romfs"
+sha256sum "$OUT/boot/rootfs.romfs" > "$OUT/boot/rootfs.romfs.sha256"
 file "$OUT/boot/vmlinux"
 sha256sum "$OUT/boot/vmlinux" > "$OUT/boot/vmlinux.sha256"
 echo "built MCF5208 no-MMU kernel"

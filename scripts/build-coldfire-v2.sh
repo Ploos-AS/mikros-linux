@@ -34,7 +34,7 @@ mkdir -p "$WORK/busybox" "$OUT/rootfs"
 tar -xjf "sources/busybox-$BUSYBOX_VERSION.tar.bz2" -C "$WORK/busybox" --strip-components=1
 make -C "$WORK/busybox" ARCH=m68k CROSS_COMPILE="$CROSS" allnoconfig >/dev/null
 bb="$WORK/busybox/.config"
-for opt in STATIC HUSH CAT ECHO LS; do
+for opt in STATIC HUSH CAT ECHO LS MOUNT; do
     sed -i "s/^# CONFIG_$opt is not set$/CONFIG_$opt=y/" "$bb"
 done
 sed -i "s/^# CONFIG_LFS is not set$/CONFIG_LFS=y/" "$bb"
@@ -53,7 +53,7 @@ if grep -q "^CONFIG_ASH=y$" "$WORK/busybox/include/config/auto.conf"; then
     exit 1
 fi
 grep -q "^CONFIG_LFS=y$" "$bb" || { echo "BusyBox LFS must be enabled for 64-bit off_t" >&2; exit 1; }
-for opt in STATIC HUSH CAT ECHO LS; do
+for opt in STATIC HUSH CAT ECHO LS MOUNT; do
     grep -q "^CONFIG_$opt=y$" "$bb" || { echo "BusyBox missing $opt" >&2; exit 1; }
 done
 # ABI diagnostic: fail early with concrete type widths, not a BusyBox typedef guess.
@@ -83,7 +83,9 @@ cat > "$OUT/rootfs/init" <<'EOF'
 echo "MikrOS ColdFire V2 userspace started"
 /bin/busybox echo "BusyBox echo: OK" || exit 1
 /bin/busybox ls /bin >/dev/null || exit 1
-/bin/busybox cat /proc/version >/dev/null 2>&1 || echo "procfs not mounted (optional)"
+/bin/busybox mount -t proc proc /proc || exit 1
+/bin/busybox cat /proc/version >/dev/null || exit 1
+echo "MikrOS ColdFire V2 procfs: PASS"
 echo "MikrOS ColdFire V2 smoke: PASS"
 exec /bin/sh
 EOF

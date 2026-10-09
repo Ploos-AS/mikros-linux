@@ -97,6 +97,15 @@ command -v cpio >/dev/null 2>&1 || { echo "cpio is required" >&2; exit 1; }
 ( cd "$OUT/rootfs" && find . -print | LC_ALL=C sort | cpio --quiet -o -H newc ) > "$OUT/boot/rootfs.cpio"
 test -s "$OUT/boot/rootfs.cpio" || { echo "empty initramfs" >&2; exit 1; }
 sha256sum "$OUT/boot/rootfs.cpio" > "$OUT/boot/rootfs.cpio.sha256"
+# Embed the cpio image into the no-MMU kernel and rebuild for QEMU userspace smoke.
+scripts_config="$WORK/linux/scripts/config"
+test -x "$scripts_config" || { echo "kernel scripts/config missing" >&2; exit 1; }
+"$scripts_config" --file "$WORK/linux/.config" --set-str INITRAMFS_SOURCE "$OUT/boot/rootfs.cpio"
+"$scripts_config" --file "$WORK/linux/.config" -e BLK_DEV_INITRD
+make -C "$WORK/linux" ARCH=m68k CROSS_COMPILE="$CROSS" olddefconfig
+make -C "$WORK/linux" -j"$JOBS" ARCH=m68k CROSS_COMPILE="$CROSS" vmlinux
+cp "$WORK/linux/vmlinux" "$OUT/boot/vmlinux"
+
 file "$OUT/boot/vmlinux"
 sha256sum "$OUT/boot/vmlinux" > "$OUT/boot/vmlinux.sha256"
 echo "built MCF5208 no-MMU kernel"

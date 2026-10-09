@@ -81,6 +81,9 @@ mkdir -p "$OUT/rootfs/dev" "$OUT/rootfs/proc" "$OUT/rootfs/sys" "$OUT/rootfs/tmp
 cat > "$OUT/rootfs/init" <<'EOF'
 #!/bin/sh
 echo "MikrOS ColdFire V2 userspace started"
+/bin/busybox echo "BusyBox echo: OK" || exit 1
+/bin/busybox ls /bin >/dev/null || exit 1
+/bin/busybox cat /proc/version >/dev/null 2>&1 || echo "procfs not mounted (optional)"
 echo "MikrOS ColdFire V2 smoke: PASS"
 exec /bin/sh
 EOF

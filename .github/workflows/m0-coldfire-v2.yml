@@ -71,4 +71,4 @@ jobs:
           set -eu
           timeout 25s qemu-system-m68k -M mcf5208evb -cpu m5208 -kernel out/m68k-coldfire-v2/minimal/boot/vmlinux -nographic -monitor none > /tmp/mcf5208-boot.log 2>&1 || rc=$?
           cat /tmp/mcf5208-boot.log
-          grep -Eq "Linux version|Booting Linux" /tmp/mcf5208-boot.log || { echo "ColdFire kernel did not reach Linux boot banner" >&2; exit 1; }
+          grep -Fq "MikrOS ColdFire V2 smoke: PASS" /tmp/mcf5208-boot.log || { echo "ColdFire initramfs userspace did not start" >&2; exit 1; }

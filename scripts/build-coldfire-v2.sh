@@ -86,6 +86,9 @@ echo "MikrOS ColdFire V2 userspace started"
 /bin/busybox mount -t proc proc /proc || exit 1
 /bin/busybox cat /proc/version >/dev/null || exit 1
 echo "MikrOS ColdFire V2 procfs: PASS"
+/bin/busybox mount -t sysfs sysfs /sys || exit 1
+/bin/busybox ls /sys/kernel >/dev/null || exit 1
+echo "MikrOS ColdFire V2 sysfs: PASS"
 echo "MikrOS ColdFire V2 smoke: PASS"
 exec /bin/sh
 EOF

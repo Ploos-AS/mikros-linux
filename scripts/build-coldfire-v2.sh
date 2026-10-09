@@ -94,7 +94,17 @@ file "$OUT/boot/rootfs.romfs"
 sha256sum "$OUT/boot/rootfs.romfs" > "$OUT/boot/rootfs.romfs.sha256"
 # Build a reproducible initramfs archive as the next boot-test input.
 command -v cpio >/dev/null 2>&1 || { echo "cpio is required" >&2; exit 1; }
-( cd "$OUT/rootfs" && find . -print | LC_ALL=C sort | cpio --quiet -o -H newc ) > "$OUT/boot/rootfs.cpio"
+# fakeroot lets CI create device nodes in the archive without root privileges.
+command -v fakeroot >/dev/null 2>&1 || { echo "fakeroot is required" >&2; exit 1; }
+fakeroot sh -c '
+  set -eu
+  cd "$1"
+  mknod dev/console c 5 1
+  chmod 600 dev/console
+  mknod dev/null c 1 3
+  chmod 666 dev/null
+  find . -print | LC_ALL=C sort | cpio --quiet -o -H newc
+' sh "$OUT/rootfs" > "$OUT/boot/rootfs.cpio"
 test -s "$OUT/boot/rootfs.cpio" || { echo "empty initramfs" >&2; exit 1; }
 sha256sum "$OUT/boot/rootfs.cpio" > "$OUT/boot/rootfs.cpio.sha256"
 # Embed the cpio image into the no-MMU kernel and rebuild for QEMU userspace smoke.

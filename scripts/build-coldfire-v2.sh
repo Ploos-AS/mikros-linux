@@ -120,7 +120,9 @@ scripts_config="$WORK/linux/scripts/config"
 test -x "$scripts_config" || { echo "kernel scripts/config missing" >&2; exit 1; }
 "$scripts_config" --file "$WORK/linux/.config" --set-str INITRAMFS_SOURCE "$OUT/boot/rootfs.cpio"
 "$scripts_config" --file "$WORK/linux/.config" -e BLK_DEV_INITRD
+"$scripts_config" --file "$WORK/linux/.config" -e SYSFS
 make -C "$WORK/linux" ARCH=m68k CROSS_COMPILE="$CROSS" olddefconfig
+grep -q "^CONFIG_SYSFS=y$" "$WORK/linux/.config" || { echo "ColdFire kernel lacks sysfs" >&2; exit 1; }
 make -C "$WORK/linux" -j"$JOBS" ARCH=m68k CROSS_COMPILE="$CROSS" vmlinux
 cp "$WORK/linux/vmlinux" "$OUT/boot/vmlinux"
 

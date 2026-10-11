@@ -2,7 +2,7 @@ TARGET ?= x86-i586
 PROFILE ?= minimal
 OUT ?= out/$(TARGET)/$(PROFILE)
 
-.PHONY: all info prepare rootfs image build smoke fetch clean
+.PHONY: all info prepare rootfs image build smoke fetch clean coldfire-preflight
 
 all: build
 
@@ -36,6 +36,10 @@ else
 	@echo "target $(TARGET) has no smoke test yet" >&2
 	@exit 2
 endif
+
+
+coldfire-preflight:
+	@./scripts/preflight-coldfire.sh
 
 clean:
 	rm -rf out

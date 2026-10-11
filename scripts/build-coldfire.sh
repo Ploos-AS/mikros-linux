@@ -1,0 +1,34 @@
+#!/bin/sh
+# MCF5208 no-MMU build preparation. Intentionally fail-closed until a
+# kernel config and boot format are validated against the pinned Linux tree.
+set -eu
+. ./scripts/lib.sh
+. ./versions.conf
+. ./targets/m68k-coldfire-v2.conf
+
+PROFILE=${1:-minimal}
+OUT=${2:-out/m68k-coldfire-v2/$PROFILE}
+[ "$PROFILE" = minimal ] || die "ColdFire M0 currently accepts minimal only"
+case "$OUT" in /*) ;; *) OUT="$PWD/$OUT";; esac
+SRC=${SRC:-sources}
+WORK="$OUT/work"
+KERNEL_ARCH=m68k
+[ "$MIKROS_EXECUTION_MODEL" = nommu ] || die "target must be no-MMU"
+
+./scripts/preflight-coldfire.sh
+linux_tar="$SRC/linux-$LINUX_VERSION.tar.xz"
+busybox_tar="$SRC/busybox-$BUSYBOX_VERSION.tar.bz2"
+[ -f "$linux_tar" ] || die "missing $linux_tar; run make fetch"
+[ -f "$busybox_tar" ] || die "missing $busybox_tar; run make fetch"
+
+mkdir -p "$WORK" "$OUT/meta"
+printf 'target=m68k-coldfire-v2\nprofile=%s\nlinux=%s\nbusybox=%s\n' \
+  "$PROFILE" "$LINUX_VERSION" "$BUSYBOX_VERSION" > "$OUT/meta/build.conf"
+sha256sum "$linux_tar" "$busybox_tar" > "$OUT/meta/source-sha256.txt"
+
+# Do not guess a defconfig: availability of an m5208 CPU compiler does not
+# establish a working Linux board configuration or image loading contract.
+echo "Prepared ColdFire source inputs at $OUT" >&2
+echo "BLOCKED: select and validate an upstream MCF5208 Linux no-MMU kernel config," >&2
+echo "then implement the compatible rootfs, image format and QEMU boot runner." >&2
+exit 3

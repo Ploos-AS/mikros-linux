@@ -2,7 +2,7 @@ TARGET ?= x86-i586
 PROFILE ?= minimal
 OUT ?= out/$(TARGET)/$(PROFILE)
 
-.PHONY: all info prepare rootfs image build smoke fetch clean coldfire-preflight
+.PHONY: all info prepare rootfs image build smoke fetch clean coldfire-preflight coldfire-discover
 
 all: build
 
@@ -40,6 +40,9 @@ endif
 
 coldfire-preflight:
 	@./scripts/preflight-coldfire.sh
+
+coldfire-discover:
+	@./scripts/discover-coldfire-kernel.sh
 
 clean:
 	rm -rf out

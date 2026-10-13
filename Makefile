@@ -24,6 +24,8 @@ image: rootfs
 build:
 ifeq ($(TARGET),x86-i586)
 	@./scripts/build-x86-i586.sh "$(PROFILE)" "$(OUT)"
+else ifeq ($(TARGET),m68k-coldfire-v2)
+	@./scripts/build-coldfire.sh "$(PROFILE)" "$(OUT)"
 else
 	@echo "target $(TARGET) has no qualified builder yet" >&2
 	@exit 2

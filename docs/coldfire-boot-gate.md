@@ -18,9 +18,7 @@ MIKROS_COLDFIRE_BOOT: process-ok
 MIKROS_COLDFIRE_BOOT: PASS
 ```
 
-The shell check must execute a real command; filesystem check must read and
-write an appropriate writable location; process check must start and wait for
-a child process. Never print PASS unconditionally from init.
+Guest-side checks are implemented in `rootfs/usr/sbin/coldfire-smoke`.\nWhen a ColdFire rootfs is assembled, copy this script into it and invoke\n`/bin/sh /usr/sbin/coldfire-smoke` **after** mounting `/proc` and setting up\na writable `/tmp`. GitHub's contents API does not guarantee executable bits,\nso explicitly using `/bin/sh` avoids depending on the file mode. The shell\ncheck executes a real command, the filesystem check writes and reads `/tmp`,\nand the process check starts and waits for a child shell. Never print PASS\nunconditionally from init.
 
 Capture serial output to a log and run:
 

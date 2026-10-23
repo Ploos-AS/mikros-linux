@@ -15,6 +15,12 @@ class SerialGateTests(unittest.TestCase):
     def test_complete_log(self):
         self.assertEqual(gate.validate(GOOD), [])
 
+    def test_embedded_markers_do_not_pass(self):
+        self.assertTrue(gate.validate("\\n".join("echo " + m for m in gate.REQUIRED)))
+
+    def test_marker_prefix_does_not_pass(self):
+        self.assertTrue(gate.validate("\\n".join(m + " (not executed)" for m in gate.REQUIRED)))
+
     def test_empty_log(self):
         self.assertTrue(gate.validate(""))
 

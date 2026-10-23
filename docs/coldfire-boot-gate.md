@@ -42,3 +42,22 @@ log. An empty log or a kernel-only boot must fail.
 
 See issue #1. Do not mark ColdFire boot-qualified before observed serial
 evidence from a real QEMU run.
+
+## QEMU execution harness
+
+`tools/run_coldfire_qemu.py` runs an explicitly provided `qemu-system-m68k`
+command, captures combined stdout/stderr as a serial log, enforces a timeout,
+and applies the marker validator. Example **syntax only** (not a validated
+MCF5208 boot command):
+
+```sh
+python3 tools/run_coldfire_qemu.py --log out/coldfire-serial.log --timeout 90 -- \\
+  qemu-system-m68k <validated-board-and-image-arguments>
+```
+
+By default, timeout or nonzero emulator exit is a failure even if markers
+appear. For a guest that intentionally remains running after PASS, use
+`--allow-timeout-after-pass` only after documenting that termination model.
+Do not pass an arbitrary host command: the harness requires
+`qemu-system-m68k`. This harness is not a substitute for a pinned kernel,
+rootfs, and validated QEMU invocation.

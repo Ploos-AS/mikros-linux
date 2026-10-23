@@ -24,9 +24,10 @@ FAILURES = (
 def validate(log: str) -> list[str]:
     errors = []
     for failure in FAILURES:
-        if failure in log:
+        if any(failure in line for line in log.splitlines()):
             errors.append(f"failure marker: {failure}")
-    positions = [log.find(marker) for marker in REQUIRED]
+    lines = [line.strip() for line in log.splitlines()]
+    positions = [next((i for i, line in enumerate(lines) if line == marker), -1) for marker in REQUIRED]
     for marker, position in zip(REQUIRED, positions):
         if position < 0:
             errors.append(f"missing marker: {marker}")

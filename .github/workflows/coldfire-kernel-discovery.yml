@@ -48,6 +48,11 @@ jobs:
           make -C /tmp/mikros-linux-src ARCH=m68k O="$GITHUB_WORKSPACE/out/coldfire-kconfig" m5208evb_defconfig
           grep -E '^(CONFIG_COLDFIRE|CONFIG_M5208|CONFIG_MMU|CONFIG_M68K)' out/coldfire-kconfig/.config || true
           test -s out/coldfire-kconfig/.config
+          grep -qx 'CONFIG_COLDFIRE=y' out/coldfire-kconfig/.config
+          if grep -qx 'CONFIG_MMU=y' out/coldfire-kconfig/.config; then
+            echo 'Unexpected MMU-enabled ColdFire configuration' >&2
+            exit 1
+          fi
       - name: Upload discovery evidence
         if: always()
         uses: actions/upload-artifact@v4

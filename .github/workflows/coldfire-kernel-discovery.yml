@@ -10,6 +10,12 @@ on:
       - 'scripts/fetch-sources.sh'
       - 'versions.conf'
       - '.github/workflows/coldfire-kernel-discovery.yml'
+  pull_request:
+    paths:
+      - 'scripts/discover-coldfire-kernel.sh'
+      - 'Makefile'
+      - 'versions.conf'
+      - '.github/workflows/coldfire-kernel-discovery.yml'
   workflow_dispatch:
 
 jobs:

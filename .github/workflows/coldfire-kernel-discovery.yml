@@ -37,10 +37,23 @@ jobs:
             "https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-$LINUX_VERSION.tar.xz"
       - name: Inspect MCF5208 kernel support
         run: make coldfire-discover
+      - name: Validate MCF5208 defconfig with upstream Kbuild
+        shell: bash
+        run: |
+          set -euo pipefail
+          . ./versions.conf
+          mkdir -p /tmp/mikros-linux-src
+          tar -xJf "sources/linux-$LINUX_VERSION.tar.xz" -C /tmp/mikros-linux-src --strip-components=1
+          test -f /tmp/mikros-linux-src/arch/m68k/configs/m5208evb_defconfig
+          make -C /tmp/mikros-linux-src ARCH=m68k O="$GITHUB_WORKSPACE/out/coldfire-kconfig" m5208evb_defconfig
+          grep -E '^(CONFIG_COLDFIRE|CONFIG_M5208|CONFIG_MMU|CONFIG_M68K)' out/coldfire-kconfig/.config || true
+          test -s out/coldfire-kconfig/.config
       - name: Upload discovery evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: coldfire-kernel-discovery
-          path: out/m68k-coldfire-v2/minimal/meta/kernel-discovery.txt
+          path: |
+            out/m68k-coldfire-v2/minimal/meta/kernel-discovery.txt
+            out/coldfire-kconfig/.config
           if-no-files-found: warn

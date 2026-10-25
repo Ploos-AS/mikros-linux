@@ -53,6 +53,18 @@ jobs:
             echo 'Unexpected MMU-enabled ColdFire configuration' >&2
             exit 1
           fi
+      - name: Probe available ColdFire cross-compilers
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p out/coldfire-kconfig
+          {
+            echo 'Cross-compiler availability on ubuntu-24.04:'
+            apt-cache show gcc-m68k-linux-gnu 2>/dev/null | grep -m 1 '^Version:' || true
+            apt-cache show gcc-m68k-linux-gnu 2>/dev/null | grep -m 1 '^Package:' || true
+            echo 'Compiler target expected by MikrOS: m68k-linux-uclibc-'
+            echo 'Compiler availability does not establish ColdFire V2 compatibility.'
+          } | tee out/coldfire-kconfig/toolchain-probe.txt
       - name: Upload discovery evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -61,4 +73,5 @@ jobs:
           path: |
             out/m68k-coldfire-v2/minimal/meta/kernel-discovery.txt
             out/coldfire-kconfig/.config
+            out/coldfire-kconfig/toolchain-probe.txt
           if-no-files-found: warn

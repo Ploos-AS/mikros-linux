@@ -15,7 +15,7 @@ WORK="$OUT/work"
 KERNEL_ARCH=m68k
 [ "$MIKROS_EXECUTION_MODEL" = nommu ] || die "target must be no-MMU"
 
-./scripts/preflight-coldfire.sh
+sh ./scripts/preflight-coldfire.sh
 linux_tar="$SRC/linux-$LINUX_VERSION.tar.xz"
 busybox_tar="$SRC/busybox-$BUSYBOX_VERSION.tar.bz2"
 [ -f "$linux_tar" ] || die "missing $linux_tar; run make fetch"

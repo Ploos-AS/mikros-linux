@@ -65,6 +65,26 @@ jobs:
             echo 'Compiler target expected by MikrOS: m68k-linux-uclibc-'
             echo 'Compiler availability does not establish ColdFire V2 compatibility.'
           } | tee out/coldfire-kconfig/toolchain-probe.txt
+      - name: Test distro m68k compiler for ColdFire V2 code generation
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get install -y gcc-m68k-linux-gnu binutils-m68k-linux-gnu
+          cat > /tmp/mikros-coldfire-probe.c <<'EOF'
+          int mikros_coldfire_probe(int x) { return x + 1; }
+          EOF
+          {
+            m68k-linux-gnu-gcc --version | head -n 1
+            if m68k-linux-gnu-gcc -mcpu=5208 -ffreestanding -fno-builtin -c \
+              /tmp/mikros-coldfire-probe.c -o /tmp/mikros-coldfire-probe.o; then
+              echo 'MCF5208 compiler option: ACCEPTED'
+              m68k-linux-gnu-readelf -h /tmp/mikros-coldfire-probe.o
+              m68k-linux-gnu-objdump -dr /tmp/mikros-coldfire-probe.o
+            else
+              echo 'MCF5208 compiler option: REJECTED'
+              echo 'Do not use this compiler for the kernel without a qualified alternative.'
+            fi
+          } | tee out/coldfire-kconfig/compiler-m5208-probe.txt
       - name: Upload discovery evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -74,4 +94,5 @@ jobs:
             out/m68k-coldfire-v2/minimal/meta/kernel-discovery.txt
             out/coldfire-kconfig/.config
             out/coldfire-kconfig/toolchain-probe.txt
+            out/coldfire-kconfig/compiler-m5208-probe.txt
           if-no-files-found: warn

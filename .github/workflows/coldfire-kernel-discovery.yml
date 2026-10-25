@@ -5,6 +5,8 @@ on:
     branches: [work/coldfire-boot-gate]
     paths:
       - 'scripts/discover-coldfire-kernel.sh'
+      - 'Makefile'
+      - 'scripts/lib.sh'
       - 'scripts/fetch-sources.sh'
       - 'versions.conf'
       - '.github/workflows/coldfire-kernel-discovery.yml'

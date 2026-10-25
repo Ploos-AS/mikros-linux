@@ -85,6 +85,25 @@ jobs:
               echo 'Do not use this compiler for the kernel without a qualified alternative.'
             fi
           } | tee out/coldfire-kconfig/compiler-m5208-probe.txt
+      - name: Attempt actual MCF5208 Linux kernel build
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get install -y make bc bison flex libssl-dev libelf-dev
+          mkdir -p out/coldfire-kconfig
+          set +e
+          make -C /tmp/mikros-linux-src ARCH=m68k CROSS_COMPILE=m68k-linux-gnu- \
+            O="$GITHUB_WORKSPACE/out/coldfire-kconfig" -j2 vmlinux \
+            > out/coldfire-kconfig/kernel-build.log 2>&1
+          rc=$?
+          set -e
+          echo "kernel_build_exit_code=$rc" | tee out/coldfire-kconfig/kernel-build-result.txt
+          tail -n 100 out/coldfire-kconfig/kernel-build.log
+          if [ "$rc" -eq 0 ] && [ -s out/coldfire-kconfig/vmlinux ]; then
+            echo 'MCF5208 kernel compilation: PASS' | tee -a out/coldfire-kconfig/kernel-build-result.txt
+          else
+            echo 'MCF5208 kernel compilation: FAIL (investigate build log)' | tee -a out/coldfire-kconfig/kernel-build-result.txt
+          fi
       - name: Upload discovery evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -95,4 +114,6 @@ jobs:
             out/coldfire-kconfig/.config
             out/coldfire-kconfig/toolchain-probe.txt
             out/coldfire-kconfig/compiler-m5208-probe.txt
+            out/coldfire-kconfig/kernel-build-result.txt
+            out/coldfire-kconfig/kernel-build.log
           if-no-files-found: warn

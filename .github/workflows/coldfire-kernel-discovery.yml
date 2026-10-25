@@ -104,6 +104,17 @@ jobs:
           else
             echo 'MCF5208 kernel compilation: FAIL (investigate build log)' | tee -a out/coldfire-kconfig/kernel-build-result.txt
           fi
+      - name: Preserve boot candidate and inspect kernel image
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s out/coldfire-kconfig/vmlinux
+          mkdir -p out/coldfire-kconfig/boot
+          cp out/coldfire-kconfig/vmlinux out/coldfire-kconfig/boot/vmlinux
+          m68k-linux-gnu-readelf -h out/coldfire-kconfig/boot/vmlinux | \
+            tee out/coldfire-kconfig/boot/vmlinux-elf.txt
+          sha256sum out/coldfire-kconfig/boot/vmlinux | \
+            tee out/coldfire-kconfig/boot/vmlinux-sha256.txt
       - name: Upload discovery evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -116,4 +127,5 @@ jobs:
             out/coldfire-kconfig/compiler-m5208-probe.txt
             out/coldfire-kconfig/kernel-build-result.txt
             out/coldfire-kconfig/kernel-build.log
+            out/coldfire-kconfig/boot/
           if-no-files-found: warn

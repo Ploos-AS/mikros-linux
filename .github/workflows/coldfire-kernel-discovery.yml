@@ -212,6 +212,10 @@ jobs:
           make -C /tmp/mikros-linux-src ARCH=m68k CROSS_COMPILE=m68k-linux-gnu- \
             O="$GITHUB_WORKSPACE/out/coldfire-kconfig" olddefconfig
           grep -E '^(CONFIG_BLK_DEV_INITRD|CONFIG_INITRAMFS_SOURCE|CONFIG_BLK_DEV_RAM|CONFIG_TMPFS)=' out/coldfire-kconfig/.config | tee out/coldfire-kconfig/boot/embedded-config.txt
+          grep -E '^(CONFIG_DEFAULT_INIT|CONFIG_CMDLINE|CONFIG_CMDLINE_OVERRIDE|CONFIG_INITRAMFS_ROOT_UID|CONFIG_INITRAMFS_ROOT_GID)=' out/coldfire-kconfig/.config || true
+          grep -R -n -E 'root=/dev/mtdblock0|mtdblock0|CONFIG_CMDLINE' \
+            /tmp/mikros-linux-src/arch/m68k/coldfire /tmp/mikros-linux-src/arch/m68k/Kconfig* \
+            2>/dev/null | head -n 65 || true
           make -C /tmp/mikros-linux-src ARCH=m68k CROSS_COMPILE=m68k-linux-gnu- \
             O="$GITHUB_WORKSPACE/out/coldfire-kconfig" -j2 vmlinux \
             > out/coldfire-kconfig/boot/embedded-build.log 2>&1
@@ -223,6 +227,8 @@ jobs:
           rc=$?
           set -e
           echo "qemu_embedded_exit_code=$rc" | tee out/coldfire-kconfig/boot/embedded-result.txt
+          grep -E 'Kernel command line:|Trying to unpack rootfs|Freeing initrd|Run /init|No working init|VFS:|rootfs|RAMDISK' \
+            out/coldfire-kconfig/boot/qemu-embedded.log | tail -n 40 || true
           if grep -q 'No working init found' out/coldfire-kconfig/boot/qemu-embedded.log; then
             echo 'EMBEDDED_INITRAMFS=REACHED_INIT_LOOKUP' | tee -a out/coldfire-kconfig/boot/embedded-result.txt
           elif grep -q 'Cannot open root device' out/coldfire-kconfig/boot/qemu-embedded.log; then

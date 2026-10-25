@@ -168,6 +168,35 @@ jobs:
             fi
           } | tee "$report"
           grep -qx 'KERNEL_BOOT=PASS' "$report"
+      - name: Probe ROMfs delivery through QEMU initrd
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get install -y genromfs
+          mkdir -p out/coldfire-kconfig/boot/romfs-root/dev
+          printf '%s\n' 'MikrOS ColdFire rootfs transport probe' \
+            > out/coldfire-kconfig/boot/romfs-root/README
+          genromfs -f out/coldfire-kconfig/boot/rootfs-probe.romfs \
+            -d out/coldfire-kconfig/boot/romfs-root -V MikrOS
+          set +e
+          timeout --signal=TERM --kill-after=5s 35s \
+            qemu-system-m68k -M mcf5208evb -nographic -monitor none \
+            -kernel out/coldfire-kconfig/boot/vmlinux \
+            -initrd out/coldfire-kconfig/boot/rootfs-probe.romfs \
+            > out/coldfire-kconfig/boot/qemu-romfs.log 2>&1
+          rc=$?
+          set -e
+          {
+            echo "qemu_romfs_exit_code=$rc"
+            if grep -q 'VFS: Cannot open root device' out/coldfire-kconfig/boot/qemu-romfs.log; then
+              echo 'ROMFS_TRANSPORT=FAIL'
+            elif grep -Eq 'No working init found|Failed to execute|Kernel panic - not syncing: No working init' out/coldfire-kconfig/boot/qemu-romfs.log; then
+              echo 'ROMFS_TRANSPORT=POSSIBLE (reached init selection)'
+            else
+              echo 'ROMFS_TRANSPORT=UNKNOWN'
+            fi
+          } | tee out/coldfire-kconfig/boot/romfs-probe-result.txt
+          tail -n 75 out/coldfire-kconfig/boot/qemu-romfs.log
       - name: Upload discovery evidence
         if: always()
         uses: actions/upload-artifact@v4

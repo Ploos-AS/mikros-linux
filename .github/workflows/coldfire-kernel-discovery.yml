@@ -115,6 +115,34 @@ jobs:
             tee out/coldfire-kconfig/boot/vmlinux-elf.txt
           sha256sum out/coldfire-kconfig/boot/vmlinux | \
             tee out/coldfire-kconfig/boot/vmlinux-sha256.txt
+      - name: Attempt MCF5208 QEMU kernel boot
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get install -y qemu-system-misc
+          mkdir -p out/coldfire-kconfig/boot
+          qemu-system-m68k -machine help | tee out/coldfire-kconfig/boot/qemu-machines.txt
+          if ! grep -q 'mcf5208evb' out/coldfire-kconfig/boot/qemu-machines.txt; then
+            echo 'QEMU does not offer mcf5208evb' | tee out/coldfire-kconfig/boot/qemu-result.txt
+            exit 0
+          fi
+          set +e
+          timeout --signal=TERM --kill-after=5s 35s \
+            qemu-system-m68k -M mcf5208evb -nographic -monitor none \
+            -kernel out/coldfire-kconfig/boot/vmlinux \
+            > out/coldfire-kconfig/boot/qemu-serial.log 2>&1
+          rc=$?
+          set -e
+          echo "qemu_exit_code=$rc" | tee out/coldfire-kconfig/boot/qemu-result.txt
+          tail -n 100 out/coldfire-kconfig/boot/qemu-serial.log
+          if grep -Eq 'Linux version |Kernel command line:|Calibrating delay loop' \
+            out/coldfire-kconfig/boot/qemu-serial.log; then
+            echo 'Kernel serial output observed (userspace NOT qualified)' | \
+              tee -a out/coldfire-kconfig/boot/qemu-result.txt
+          else
+            echo 'No Linux kernel serial evidence yet' | \
+              tee -a out/coldfire-kconfig/boot/qemu-result.txt
+          fi
       - name: Upload discovery evidence
         if: always()
         uses: actions/upload-artifact@v4

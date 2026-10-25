@@ -143,6 +143,31 @@ jobs:
             echo 'No Linux kernel serial evidence yet' | \
               tee -a out/coldfire-kconfig/boot/qemu-result.txt
           fi
+      - name: Classify kernel boot and missing root filesystem
+        shell: bash
+        run: |
+          set -euo pipefail
+          log=out/coldfire-kconfig/boot/qemu-serial.log
+          report=out/coldfire-kconfig/boot/boot-assessment.txt
+          test -s "$log"
+          {
+            if grep -q 'Linux version ' "$log" && \
+               grep -q 'ttyS0.*ColdFire UART' "$log" && \
+               grep -q 'console \[ttyS0\] enabled' "$log"; then
+              echo 'KERNEL_BOOT=PASS'
+            else
+              echo 'KERNEL_BOOT=FAIL'
+            fi
+            if grep -q 'Cannot open root device' "$log"; then
+              echo 'ROOTFS_MOUNT=FAIL'
+              echo 'NEXT_ACTION=provide compatible no-MMU ROMfs or initramfs'
+            elif grep -q 'Run /init as init process' "$log"; then
+              echo 'ROOTFS_MOUNT=LIKELY_PASS'
+            else
+              echo 'ROOTFS_MOUNT=UNKNOWN'
+            fi
+          } | tee "$report"
+          grep -qx 'KERNEL_BOOT=PASS' "$report"
       - name: Upload discovery evidence
         if: always()
         uses: actions/upload-artifact@v4

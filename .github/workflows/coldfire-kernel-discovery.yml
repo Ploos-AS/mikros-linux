@@ -219,6 +219,14 @@ jobs:
           make -C /tmp/mikros-linux-src ARCH=m68k CROSS_COMPILE=m68k-linux-gnu- \
             O="$GITHUB_WORKSPACE/out/coldfire-kconfig" -j2 vmlinux \
             > out/coldfire-kconfig/boot/embedded-build.log 2>&1
+          # Verify that Kbuild actually embedded the expected initramfs payload.
+          test -s out/coldfire-kconfig/usr/initramfs_inc_data
+          if grep -a -q 'MikrOS embedded initramfs transport probe' \
+            out/coldfire-kconfig/usr/initramfs_inc_data; then
+            echo 'INITRAMFS_PAYLOAD=EMBEDDED' | tee out/coldfire-kconfig/boot/payload-result.txt
+          else
+            echo 'INITRAMFS_PAYLOAD=NOT_FOUND' | tee out/coldfire-kconfig/boot/payload-result.txt
+          fi
           set +e
           timeout --signal=TERM --kill-after=5s 35s \
             qemu-system-m68k -M mcf5208evb -nographic -monitor none \

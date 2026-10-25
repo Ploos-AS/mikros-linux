@@ -206,9 +206,12 @@ jobs:
             > out/coldfire-kconfig/boot/initramfs-root/README
           /tmp/mikros-linux-src/scripts/config --file out/coldfire-kconfig/.config \
             -e BLK_DEV_INITRD \
+            -e BLK_DEV_RAM \
+            -e TMPFS \
             --set-str INITRAMFS_SOURCE "$GITHUB_WORKSPACE/out/coldfire-kconfig/boot/initramfs-root"
           make -C /tmp/mikros-linux-src ARCH=m68k CROSS_COMPILE=m68k-linux-gnu- \
             O="$GITHUB_WORKSPACE/out/coldfire-kconfig" olddefconfig
+          grep -E '^(CONFIG_BLK_DEV_INITRD|CONFIG_INITRAMFS_SOURCE|CONFIG_BLK_DEV_RAM|CONFIG_TMPFS)=' out/coldfire-kconfig/.config | tee out/coldfire-kconfig/boot/embedded-config.txt
           make -C /tmp/mikros-linux-src ARCH=m68k CROSS_COMPILE=m68k-linux-gnu- \
             O="$GITHUB_WORKSPACE/out/coldfire-kconfig" -j2 vmlinux \
             > out/coldfire-kconfig/boot/embedded-build.log 2>&1

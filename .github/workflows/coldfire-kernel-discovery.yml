@@ -1,0 +1,38 @@
+name: ColdFire kernel source discovery
+
+on:
+  push:
+    branches: [work/coldfire-boot-gate]
+    paths:
+      - 'scripts/discover-coldfire-kernel.sh'
+      - 'scripts/fetch-sources.sh'
+      - 'versions.conf'
+      - '.github/workflows/coldfire-kernel-discovery.yml'
+  workflow_dispatch:
+
+jobs:
+  discover:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install archive tools
+        run: sudo apt-get update && sudo apt-get install -y xz-utils
+      - name: Fetch pinned Linux kernel archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          . ./versions.conf
+          mkdir -p sources
+          curl -fL --retry 3 --connect-timeout 20 --max-time 600 \
+            -o "sources/linux-$LINUX_VERSION.tar.xz" \
+            "https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-$LINUX_VERSION.tar.xz"
+      - name: Inspect MCF5208 kernel support
+        run: make coldfire-discover
+      - name: Upload discovery evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coldfire-kernel-discovery
+          path: out/m68k-coldfire-v2/minimal/meta/kernel-discovery.txt
+          if-no-files-found: warn

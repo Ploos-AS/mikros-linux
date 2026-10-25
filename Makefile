@@ -25,7 +25,7 @@ build:
 ifeq ($(TARGET),x86-i586)
 	@./scripts/build-x86-i586.sh "$(PROFILE)" "$(OUT)"
 else ifeq ($(TARGET),m68k-coldfire-v2)
-	@./scripts/build-coldfire.sh "$(PROFILE)" "$(OUT)"
+	@sh ./scripts/build-coldfire.sh "$(PROFILE)" "$(OUT)"
 else
 	@echo "target $(TARGET) has no qualified builder yet" >&2
 	@exit 2
@@ -41,10 +41,10 @@ endif
 
 
 coldfire-preflight:
-	@./scripts/preflight-coldfire.sh
+	@sh ./scripts/preflight-coldfire.sh
 
 coldfire-discover:
-	@./scripts/discover-coldfire-kernel.sh
+	@sh ./scripts/discover-coldfire-kernel.sh
 
 clean:
 	rm -rf out

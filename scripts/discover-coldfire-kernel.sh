@@ -37,8 +37,8 @@ tree="$temp/linux"
       "$tree/arch/m68k/Kconfig"* "$tree/arch/m68k/platform" \
       "$tree/arch/m68k/configs" 2>/dev/null | head -n 120 || true
     echo 'ColdFire-related Kconfig symbols:'
-    grep -RnhE '^[[:space:]]*(menu)?config[[:space:]]+(M5208|COLDFIRE|M68K.*NOMMU)' \
-      "$tree/arch/m68k" --include='Kconfig*' 2>/dev/null | \
+    grep -RnhE --include='Kconfig*' '^[[:space:]]*(menu)?config[[:space:]]+(M5208|COLDFIRE|M68K.*NOMMU)' \
+      "$tree/arch/m68k" 2>/dev/null | \
       LC_ALL=C sort -u || true
 } > "$report"
 cat "$report"

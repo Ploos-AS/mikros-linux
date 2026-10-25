@@ -197,6 +197,37 @@ jobs:
             fi
           } | tee out/coldfire-kconfig/boot/romfs-probe-result.txt
           tail -n 75 out/coldfire-kconfig/boot/qemu-romfs.log
+      - name: Probe built-in initramfs with minimal init
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p out/coldfire-kconfig/boot/initramfs-root
+          printf '%s\n' 'MikrOS embedded initramfs transport probe' \
+            > out/coldfire-kconfig/boot/initramfs-root/README
+          /tmp/mikros-linux-src/scripts/config --file out/coldfire-kconfig/.config \
+            -e BLK_DEV_INITRD \
+            --set-str INITRAMFS_SOURCE "$GITHUB_WORKSPACE/out/coldfire-kconfig/boot/initramfs-root"
+          make -C /tmp/mikros-linux-src ARCH=m68k CROSS_COMPILE=m68k-linux-gnu- \
+            O="$GITHUB_WORKSPACE/out/coldfire-kconfig" olddefconfig
+          make -C /tmp/mikros-linux-src ARCH=m68k CROSS_COMPILE=m68k-linux-gnu- \
+            O="$GITHUB_WORKSPACE/out/coldfire-kconfig" -j2 vmlinux \
+            > out/coldfire-kconfig/boot/embedded-build.log 2>&1
+          set +e
+          timeout --signal=TERM --kill-after=5s 35s \
+            qemu-system-m68k -M mcf5208evb -nographic -monitor none \
+            -kernel out/coldfire-kconfig/vmlinux \
+            > out/coldfire-kconfig/boot/qemu-embedded.log 2>&1
+          rc=$?
+          set -e
+          echo "qemu_embedded_exit_code=$rc" | tee out/coldfire-kconfig/boot/embedded-result.txt
+          if grep -q 'No working init found' out/coldfire-kconfig/boot/qemu-embedded.log; then
+            echo 'EMBEDDED_INITRAMFS=REACHED_INIT_LOOKUP' | tee -a out/coldfire-kconfig/boot/embedded-result.txt
+          elif grep -q 'Cannot open root device' out/coldfire-kconfig/boot/qemu-embedded.log; then
+            echo 'EMBEDDED_INITRAMFS=FAIL' | tee -a out/coldfire-kconfig/boot/embedded-result.txt
+          else
+            echo 'EMBEDDED_INITRAMFS=UNKNOWN' | tee -a out/coldfire-kconfig/boot/embedded-result.txt
+          fi
+          tail -n 65 out/coldfire-kconfig/boot/qemu-embedded.log
       - name: Upload discovery evidence
         if: always()
         uses: actions/upload-artifact@v4

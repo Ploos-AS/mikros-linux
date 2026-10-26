@@ -2,7 +2,7 @@ TARGET ?= x86-i586
 PROFILE ?= minimal
 OUT ?= out/$(TARGET)/$(PROFILE)
 
-.PHONY: all info prepare rootfs image build smoke fetch clean
+.PHONY: all info prepare rootfs image build smoke fetch clean coldfire-preflight coldfire-discover
 
 all: build
 
@@ -24,6 +24,8 @@ image: rootfs
 build:
 ifeq ($(TARGET),x86-i586)
 	@./scripts/build-x86-i586.sh "$(PROFILE)" "$(OUT)"
+else ifeq ($(TARGET),m68k-coldfire-v2)
+	@sh ./scripts/build-coldfire.sh "$(PROFILE)" "$(OUT)"
 else
 	@echo "target $(TARGET) has no qualified builder yet" >&2
 	@exit 2
@@ -36,6 +38,13 @@ else
 	@echo "target $(TARGET) has no smoke test yet" >&2
 	@exit 2
 endif
+
+
+coldfire-preflight:
+	@sh ./scripts/preflight-coldfire.sh
+
+coldfire-discover:
+	@sh ./scripts/discover-coldfire-kernel.sh
 
 clean:
 	rm -rf out

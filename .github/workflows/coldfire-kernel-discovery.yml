@@ -1,0 +1,304 @@
+name: ColdFire kernel source discovery
+
+on:
+  push:
+    branches: [work/coldfire-boot-gate]
+    paths:
+      - 'scripts/discover-coldfire-kernel.sh'
+      - 'Makefile'
+      - 'scripts/lib.sh'
+      - 'scripts/fetch-sources.sh'
+      - 'versions.conf'
+      - '.github/workflows/coldfire-kernel-discovery.yml'
+  pull_request:
+    paths:
+      - 'scripts/discover-coldfire-kernel.sh'
+      - 'Makefile'
+      - 'versions.conf'
+      - '.github/workflows/coldfire-kernel-discovery.yml'
+  workflow_dispatch:
+
+jobs:
+  discover:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install archive tools
+        run: sudo apt-get update && sudo apt-get install -y xz-utils
+      - name: Fetch pinned Linux kernel archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          . ./versions.conf
+          mkdir -p sources
+          curl -fL --retry 3 --connect-timeout 20 --max-time 600 \
+            -o "sources/linux-$LINUX_VERSION.tar.xz" \
+            "https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-$LINUX_VERSION.tar.xz"
+      - name: Inspect MCF5208 kernel support
+        run: make coldfire-discover
+      - name: Validate MCF5208 defconfig with upstream Kbuild
+        shell: bash
+        run: |
+          set -euo pipefail
+          . ./versions.conf
+          mkdir -p /tmp/mikros-linux-src
+          tar -xJf "sources/linux-$LINUX_VERSION.tar.xz" -C /tmp/mikros-linux-src --strip-components=1
+          test -f /tmp/mikros-linux-src/arch/m68k/configs/m5208evb_defconfig
+          make -C /tmp/mikros-linux-src ARCH=m68k O="$GITHUB_WORKSPACE/out/coldfire-kconfig" m5208evb_defconfig
+          grep -E '^(CONFIG_COLDFIRE|CONFIG_M5208|CONFIG_MMU|CONFIG_M68K)' out/coldfire-kconfig/.config || true
+          test -s out/coldfire-kconfig/.config
+          grep -qx 'CONFIG_COLDFIRE=y' out/coldfire-kconfig/.config
+          if grep -qx 'CONFIG_MMU=y' out/coldfire-kconfig/.config; then
+            echo 'Unexpected MMU-enabled ColdFire configuration' >&2
+            exit 1
+          fi
+      - name: Probe available ColdFire cross-compilers
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p out/coldfire-kconfig
+          {
+            echo 'Cross-compiler availability on ubuntu-24.04:'
+            apt-cache show gcc-m68k-linux-gnu 2>/dev/null | grep -m 1 '^Version:' || true
+            apt-cache show gcc-m68k-linux-gnu 2>/dev/null | grep -m 1 '^Package:' || true
+            echo 'Compiler target expected by MikrOS: m68k-linux-uclibc-'
+            echo 'Compiler availability does not establish ColdFire V2 compatibility.'
+          } | tee out/coldfire-kconfig/toolchain-probe.txt
+      - name: Test distro m68k compiler for ColdFire V2 code generation
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get install -y gcc-m68k-linux-gnu binutils-m68k-linux-gnu
+          cat > /tmp/mikros-coldfire-probe.c <<'EOF'
+          int mikros_coldfire_probe(int x) { return x + 1; }
+          EOF
+          {
+            m68k-linux-gnu-gcc --version | head -n 1
+            if m68k-linux-gnu-gcc -mcpu=5208 -ffreestanding -fno-builtin -c \
+              /tmp/mikros-coldfire-probe.c -o /tmp/mikros-coldfire-probe.o; then
+              echo 'MCF5208 compiler option: ACCEPTED'
+              m68k-linux-gnu-readelf -h /tmp/mikros-coldfire-probe.o
+              m68k-linux-gnu-objdump -dr /tmp/mikros-coldfire-probe.o
+            else
+              echo 'MCF5208 compiler option: REJECTED'
+              echo 'Do not use this compiler for the kernel without a qualified alternative.'
+            fi
+          } | tee out/coldfire-kconfig/compiler-m5208-probe.txt
+      - name: Attempt actual MCF5208 Linux kernel build
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get install -y make bc bison flex libssl-dev libelf-dev
+          mkdir -p out/coldfire-kconfig
+          set +e
+          make -C /tmp/mikros-linux-src ARCH=m68k CROSS_COMPILE=m68k-linux-gnu- \
+            O="$GITHUB_WORKSPACE/out/coldfire-kconfig" -j2 vmlinux \
+            > out/coldfire-kconfig/kernel-build.log 2>&1
+          rc=$?
+          set -e
+          echo "kernel_build_exit_code=$rc" | tee out/coldfire-kconfig/kernel-build-result.txt
+          tail -n 100 out/coldfire-kconfig/kernel-build.log
+          if [ "$rc" -eq 0 ] && [ -s out/coldfire-kconfig/vmlinux ]; then
+            echo 'MCF5208 kernel compilation: PASS' | tee -a out/coldfire-kconfig/kernel-build-result.txt
+          else
+            echo 'MCF5208 kernel compilation: FAIL (investigate build log)' | tee -a out/coldfire-kconfig/kernel-build-result.txt
+          fi
+      - name: Preserve boot candidate and inspect kernel image
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s out/coldfire-kconfig/vmlinux
+          mkdir -p out/coldfire-kconfig/boot
+          cp out/coldfire-kconfig/vmlinux out/coldfire-kconfig/boot/vmlinux
+          m68k-linux-gnu-readelf -h out/coldfire-kconfig/boot/vmlinux | \
+            tee out/coldfire-kconfig/boot/vmlinux-elf.txt
+          sha256sum out/coldfire-kconfig/boot/vmlinux | \
+            tee out/coldfire-kconfig/boot/vmlinux-sha256.txt
+      - name: Attempt MCF5208 QEMU kernel boot
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get install -y qemu-system-misc
+          mkdir -p out/coldfire-kconfig/boot
+          qemu-system-m68k -machine help | tee out/coldfire-kconfig/boot/qemu-machines.txt
+          if ! grep -q 'mcf5208evb' out/coldfire-kconfig/boot/qemu-machines.txt; then
+            echo 'QEMU does not offer mcf5208evb' | tee out/coldfire-kconfig/boot/qemu-result.txt
+            exit 0
+          fi
+          set +e
+          timeout --signal=TERM --kill-after=5s 35s \
+            qemu-system-m68k -M mcf5208evb -nographic -monitor none \
+            -kernel out/coldfire-kconfig/boot/vmlinux \
+            > out/coldfire-kconfig/boot/qemu-serial.log 2>&1
+          rc=$?
+          set -e
+          echo "qemu_exit_code=$rc" | tee out/coldfire-kconfig/boot/qemu-result.txt
+          tail -n 100 out/coldfire-kconfig/boot/qemu-serial.log
+          if grep -Eq 'Linux version |Kernel command line:|Calibrating delay loop' \
+            out/coldfire-kconfig/boot/qemu-serial.log; then
+            echo 'Kernel serial output observed (userspace NOT qualified)' | \
+              tee -a out/coldfire-kconfig/boot/qemu-result.txt
+          else
+            echo 'No Linux kernel serial evidence yet' | \
+              tee -a out/coldfire-kconfig/boot/qemu-result.txt
+          fi
+      - name: Classify kernel boot and missing root filesystem
+        shell: bash
+        run: |
+          set -euo pipefail
+          log=out/coldfire-kconfig/boot/qemu-serial.log
+          report=out/coldfire-kconfig/boot/boot-assessment.txt
+          test -s "$log"
+          {
+            if grep -q 'Linux version ' "$log" && \
+               grep -q 'ttyS0.*ColdFire UART' "$log" && \
+               grep -q 'console \[ttyS0\] enabled' "$log"; then
+              echo 'KERNEL_BOOT=PASS'
+            else
+              echo 'KERNEL_BOOT=FAIL'
+            fi
+            if grep -q 'Cannot open root device' "$log"; then
+              echo 'ROOTFS_MOUNT=FAIL'
+              echo 'NEXT_ACTION=provide compatible no-MMU ROMfs or initramfs'
+            elif grep -q 'Run /init as init process' "$log"; then
+              echo 'ROOTFS_MOUNT=LIKELY_PASS'
+            else
+              echo 'ROOTFS_MOUNT=UNKNOWN'
+            fi
+          } | tee "$report"
+          grep -qx 'KERNEL_BOOT=PASS' "$report"
+      - name: Probe ROMfs delivery through QEMU initrd
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get install -y genromfs
+          mkdir -p out/coldfire-kconfig/boot/romfs-root/dev
+          printf '%s\n' 'MikrOS ColdFire rootfs transport probe' \
+            > out/coldfire-kconfig/boot/romfs-root/README
+          genromfs -f out/coldfire-kconfig/boot/rootfs-probe.romfs \
+            -d out/coldfire-kconfig/boot/romfs-root -V MikrOS
+          set +e
+          timeout --signal=TERM --kill-after=5s 35s \
+            qemu-system-m68k -M mcf5208evb -nographic -monitor none \
+            -kernel out/coldfire-kconfig/boot/vmlinux \
+            -initrd out/coldfire-kconfig/boot/rootfs-probe.romfs \
+            > out/coldfire-kconfig/boot/qemu-romfs.log 2>&1
+          rc=$?
+          set -e
+          {
+            echo "qemu_romfs_exit_code=$rc"
+            if grep -q 'VFS: Cannot open root device' out/coldfire-kconfig/boot/qemu-romfs.log; then
+              echo 'ROMFS_TRANSPORT=FAIL'
+            elif grep -Eq 'No working init found|Failed to execute|Kernel panic - not syncing: No working init' out/coldfire-kconfig/boot/qemu-romfs.log; then
+              echo 'ROMFS_TRANSPORT=POSSIBLE (reached init selection)'
+            else
+              echo 'ROMFS_TRANSPORT=UNKNOWN'
+            fi
+          } | tee out/coldfire-kconfig/boot/romfs-probe-result.txt
+          tail -n 75 out/coldfire-kconfig/boot/qemu-romfs.log
+      - name: Probe ColdFire no-MMU userspace toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p out/coldfire-kconfig/boot
+          report=out/coldfire-kconfig/boot/userspace-toolchain.txt
+          {
+            echo 'COLD_FIRE_USERSPACE_TOOLCHAIN_PROBE'
+            echo 'Kernel cross-compiler is not proof of a no-MMU userspace toolchain.'
+            for cc in m68k-linux-uclibc-gcc m68k-uclinux-gcc m68k-elf-gcc m68k-linux-gnu-gcc; do
+              if command -v "$cc" >/dev/null 2>&1; then
+                echo "$cc=FOUND"
+                "$cc" -dumpmachine || true
+                "$cc" -print-file-name=libc.a || true
+              else
+                echo "$cc=ABSENT"
+              fi
+            done
+            for tool in elf2flt m68k-linux-uclibc-elf2flt m68k-uclinux-elf2flt; do
+              if command -v "$tool" >/dev/null 2>&1; then
+                echo "$tool=FOUND"
+              else
+                echo "$tool=ABSENT"
+              fi
+            done
+            if command -v m68k-linux-gnu-gcc >/dev/null 2>&1; then
+              m68k-linux-gnu-gcc -mcpu=5208 -c \
+                targets/m68k-coldfire-v2/init/init.c \
+                -o out/coldfire-kconfig/boot/init-probe.o
+              file out/coldfire-kconfig/boot/init-probe.o
+              echo 'INIT_C_SYNTAX_AND_TARGET_OBJECT=PASS'
+              echo 'INIT_NO_MMU_EXECUTION=NOT_TESTED'
+            fi
+          } | tee "$report"
+      - name: Probe built-in initramfs with minimal init
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p out/coldfire-kconfig/boot/initramfs-root
+          printf '%s\n' 'MikrOS embedded initramfs transport probe' \
+            > out/coldfire-kconfig/boot/initramfs-root/README
+          # A missing /init causes Linux to fall back to the hardcoded MTD root.
+          # This script intentionally has no interpreter yet: it probes whether
+          # the kernel finds /init, not whether userspace can run.
+          printf '#!/bin/sh\necho MIKROS_INIT_REACHED\n' \
+            > out/coldfire-kconfig/boot/initramfs-root/init
+          chmod 755 out/coldfire-kconfig/boot/initramfs-root/init
+          /tmp/mikros-linux-src/scripts/config --file out/coldfire-kconfig/.config \
+            -e BLK_DEV_INITRD \
+            -e BLK_DEV_RAM \
+            -e TMPFS \
+            --set-str INITRAMFS_SOURCE "$GITHUB_WORKSPACE/out/coldfire-kconfig/boot/initramfs-root"
+          make -C /tmp/mikros-linux-src ARCH=m68k CROSS_COMPILE=m68k-linux-gnu- \
+            O="$GITHUB_WORKSPACE/out/coldfire-kconfig" olddefconfig
+          grep -E '^(CONFIG_BLK_DEV_INITRD|CONFIG_INITRAMFS_SOURCE|CONFIG_BLK_DEV_RAM|CONFIG_TMPFS)=' out/coldfire-kconfig/.config | tee out/coldfire-kconfig/boot/embedded-config.txt
+          grep -E '^(CONFIG_DEFAULT_INIT|CONFIG_CMDLINE|CONFIG_CMDLINE_OVERRIDE|CONFIG_INITRAMFS_ROOT_UID|CONFIG_INITRAMFS_ROOT_GID)=' out/coldfire-kconfig/.config || true
+          grep -R -n -E 'root=/dev/mtdblock0|mtdblock0|CONFIG_CMDLINE' \
+            /tmp/mikros-linux-src/arch/m68k/coldfire /tmp/mikros-linux-src/arch/m68k/Kconfig* \
+            2>/dev/null | head -n 65 || true
+          make -C /tmp/mikros-linux-src ARCH=m68k CROSS_COMPILE=m68k-linux-gnu- \
+            O="$GITHUB_WORKSPACE/out/coldfire-kconfig" -j2 vmlinux \
+            > out/coldfire-kconfig/boot/embedded-build.log 2>&1
+          # Verify that Kbuild actually embedded the expected initramfs payload.
+          test -s out/coldfire-kconfig/usr/initramfs_inc_data
+          # initramfs_inc_data may be compressed; textual grep is not a valid
+          # payload check. The boot-time /init lookup below is authoritative.
+          wc -c out/coldfire-kconfig/usr/initramfs_inc_data | \
+            tee out/coldfire-kconfig/boot/payload-size.txt
+          set +e
+          timeout --signal=TERM --kill-after=5s 35s \
+            qemu-system-m68k -M mcf5208evb -nographic -monitor none \
+            -kernel out/coldfire-kconfig/vmlinux \
+            > out/coldfire-kconfig/boot/qemu-embedded.log 2>&1
+          rc=$?
+          set -e
+          echo "qemu_embedded_exit_code=$rc" | tee out/coldfire-kconfig/boot/embedded-result.txt
+          grep -E 'Kernel command line:|Trying to unpack rootfs|Freeing initrd|Run /init|No working init|VFS:|rootfs|RAMDISK' \
+            out/coldfire-kconfig/boot/qemu-embedded.log | tail -n 40 || true
+          if grep -q 'Run /init as init process' out/coldfire-kconfig/boot/qemu-embedded.log; then
+            echo 'EMBEDDED_INITRAMFS=INIT_DISCOVERED' | tee -a out/coldfire-kconfig/boot/embedded-result.txt
+            echo 'USERSPACE=NOT_QUALIFIED' | tee -a out/coldfire-kconfig/boot/embedded-result.txt
+          elif grep -q 'No working init found' out/coldfire-kconfig/boot/qemu-embedded.log; then
+            echo 'EMBEDDED_INITRAMFS=REACHED_INIT_LOOKUP' | tee -a out/coldfire-kconfig/boot/embedded-result.txt
+          elif grep -q 'Cannot open root device' out/coldfire-kconfig/boot/qemu-embedded.log; then
+            echo 'EMBEDDED_INITRAMFS=FAIL' | tee -a out/coldfire-kconfig/boot/embedded-result.txt
+          else
+            echo 'EMBEDDED_INITRAMFS=UNKNOWN' | tee -a out/coldfire-kconfig/boot/embedded-result.txt
+          fi
+          tail -n 65 out/coldfire-kconfig/boot/qemu-embedded.log
+          grep -qx 'EMBEDDED_INITRAMFS=INIT_DISCOVERED' \
+            out/coldfire-kconfig/boot/embedded-result.txt
+      - name: Upload discovery evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coldfire-kernel-discovery
+          path: |
+            out/m68k-coldfire-v2/minimal/meta/kernel-discovery.txt
+            out/coldfire-kconfig/.config
+            out/coldfire-kconfig/toolchain-probe.txt
+            out/coldfire-kconfig/compiler-m5208-probe.txt
+            out/coldfire-kconfig/kernel-build-result.txt
+            out/coldfire-kconfig/kernel-build.log
+            out/coldfire-kconfig/boot/
+          if-no-files-found: warn

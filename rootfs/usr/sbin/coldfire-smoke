@@ -1,0 +1,29 @@
+#!/bin/sh
+# Run inside the ColdFire guest *after* init mounted /proc and writable /tmp.
+# Emit each marker only after its corresponding command succeeds.
+set -eu
+
+fail() {
+    echo "MIKROS_COLDFIRE_BOOT: FAIL: $*" >&2
+    exit 1
+}
+
+echo "MIKROS_COLDFIRE_BOOT: userspace"
+[ -x /bin/sh ] || fail "missing shell"
+[ "$( /bin/sh -c 'printf shell-ready' )" = shell-ready ] ||
+    fail "shell execution"
+echo "MIKROS_COLDFIRE_BOOT: shell-ok"
+
+[ -d /tmp ] || fail "missing tmp"
+probe="/tmp/mikros-coldfire-smoke-$$"
+trap 'rm -f "$probe"' EXIT HUP INT TERM
+printf '%s\n' 'coldfire-fs-ready' > "$probe" || fail "write tmp"
+[ "$(cat "$probe")" = coldfire-fs-ready ] || fail "read tmp"
+rm -f "$probe"
+trap - EXIT HUP INT TERM
+echo "MIKROS_COLDFIRE_BOOT: filesystem-ok"
+
+# Execute a child shell, capture its exit status, and wait for completion.
+( /bin/sh -c 'exit 0' ) || fail "child process"
+echo "MIKROS_COLDFIRE_BOOT: process-ok"
+echo "MIKROS_COLDFIRE_BOOT: PASS"

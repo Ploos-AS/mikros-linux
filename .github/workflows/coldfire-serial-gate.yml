@@ -1,0 +1,16 @@
+name: ColdFire serial gate unit tests
+
+on:
+  push:
+    branches: [work/coldfire-boot-gate]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  serial-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check Python serial gate and negative cases
+        run: python3 -m unittest discover -s tests -p 'test_coldfire_serial.py' -v

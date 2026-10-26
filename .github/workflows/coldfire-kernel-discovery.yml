@@ -204,6 +204,12 @@ jobs:
           mkdir -p out/coldfire-kconfig/boot/initramfs-root
           printf '%s\n' 'MikrOS embedded initramfs transport probe' \
             > out/coldfire-kconfig/boot/initramfs-root/README
+          # A missing /init causes Linux to fall back to the hardcoded MTD root.
+          # This script intentionally has no interpreter yet: it probes whether
+          # the kernel finds /init, not whether userspace can run.
+          printf '#!/bin/sh\necho MIKROS_INIT_REACHED\n' \
+            > out/coldfire-kconfig/boot/initramfs-root/init
+          chmod 755 out/coldfire-kconfig/boot/initramfs-root/init
           /tmp/mikros-linux-src/scripts/config --file out/coldfire-kconfig/.config \
             -e BLK_DEV_INITRD \
             -e BLK_DEV_RAM \
@@ -237,7 +243,9 @@ jobs:
           echo "qemu_embedded_exit_code=$rc" | tee out/coldfire-kconfig/boot/embedded-result.txt
           grep -E 'Kernel command line:|Trying to unpack rootfs|Freeing initrd|Run /init|No working init|VFS:|rootfs|RAMDISK' \
             out/coldfire-kconfig/boot/qemu-embedded.log | tail -n 40 || true
-          if grep -q 'No working init found' out/coldfire-kconfig/boot/qemu-embedded.log; then
+          if grep -Eq 'Failed to execute /init|Run /init as init process|Requested init /init failed' out/coldfire-kconfig/boot/qemu-embedded.log; then
+            echo 'EMBEDDED_INITRAMFS=INIT_DISCOVERED' | tee -a out/coldfire-kconfig/boot/embedded-result.txt
+          elif grep -q 'No working init found' out/coldfire-kconfig/boot/qemu-embedded.log; then
             echo 'EMBEDDED_INITRAMFS=REACHED_INIT_LOOKUP' | tee -a out/coldfire-kconfig/boot/embedded-result.txt
           elif grep -q 'Cannot open root device' out/coldfire-kconfig/boot/qemu-embedded.log; then
             echo 'EMBEDDED_INITRAMFS=FAIL' | tee -a out/coldfire-kconfig/boot/embedded-result.txt

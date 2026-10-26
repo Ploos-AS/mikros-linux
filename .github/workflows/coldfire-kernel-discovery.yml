@@ -197,6 +197,40 @@ jobs:
             fi
           } | tee out/coldfire-kconfig/boot/romfs-probe-result.txt
           tail -n 75 out/coldfire-kconfig/boot/qemu-romfs.log
+      - name: Probe ColdFire no-MMU userspace toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p out/coldfire-kconfig/boot
+          report=out/coldfire-kconfig/boot/userspace-toolchain.txt
+          {
+            echo 'COLD_FIRE_USERSPACE_TOOLCHAIN_PROBE'
+            echo 'Kernel cross-compiler is not proof of a no-MMU userspace toolchain.'
+            for cc in m68k-linux-uclibc-gcc m68k-uclinux-gcc m68k-elf-gcc m68k-linux-gnu-gcc; do
+              if command -v "$cc" >/dev/null 2>&1; then
+                echo "$cc=FOUND"
+                "$cc" -dumpmachine || true
+                "$cc" -print-file-name=libc.a || true
+              else
+                echo "$cc=ABSENT"
+              fi
+            done
+            for tool in elf2flt m68k-linux-uclibc-elf2flt m68k-uclinux-elf2flt; do
+              if command -v "$tool" >/dev/null 2>&1; then
+                echo "$tool=FOUND"
+              else
+                echo "$tool=ABSENT"
+              fi
+            done
+            if command -v m68k-linux-gnu-gcc >/dev/null 2>&1; then
+              m68k-linux-gnu-gcc -mcpu=5208 -c \
+                targets/m68k-coldfire-v2/init/init.c \
+                -o out/coldfire-kconfig/boot/init-probe.o
+              file out/coldfire-kconfig/boot/init-probe.o
+              echo 'INIT_C_SYNTAX_AND_TARGET_OBJECT=PASS'
+              echo 'INIT_NO_MMU_EXECUTION=NOT_TESTED'
+            fi
+          } | tee "$report"
       - name: Probe built-in initramfs with minimal init
         shell: bash
         run: |

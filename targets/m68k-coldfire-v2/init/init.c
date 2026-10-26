@@ -21,7 +21,7 @@ static void say(const char *s)
 
 int main(void)
 {
-    say("MIKROS_COLDFIRE_INIT_OK\\n");
+    say("MIKROS_COLDFIRE_INIT_OK\n");
     for (;;)
         pause();
     return 0;

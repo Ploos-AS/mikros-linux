@@ -227,12 +227,10 @@ jobs:
             > out/coldfire-kconfig/boot/embedded-build.log 2>&1
           # Verify that Kbuild actually embedded the expected initramfs payload.
           test -s out/coldfire-kconfig/usr/initramfs_inc_data
-          if grep -a -q 'MikrOS embedded initramfs transport probe' \
-            out/coldfire-kconfig/usr/initramfs_inc_data; then
-            echo 'INITRAMFS_PAYLOAD=EMBEDDED' | tee out/coldfire-kconfig/boot/payload-result.txt
-          else
-            echo 'INITRAMFS_PAYLOAD=NOT_FOUND' | tee out/coldfire-kconfig/boot/payload-result.txt
-          fi
+          # initramfs_inc_data may be compressed; textual grep is not a valid
+          # payload check. The boot-time /init lookup below is authoritative.
+          wc -c out/coldfire-kconfig/usr/initramfs_inc_data | \
+            tee out/coldfire-kconfig/boot/payload-size.txt
           set +e
           timeout --signal=TERM --kill-after=5s 35s \
             qemu-system-m68k -M mcf5208evb -nographic -monitor none \
@@ -243,8 +241,9 @@ jobs:
           echo "qemu_embedded_exit_code=$rc" | tee out/coldfire-kconfig/boot/embedded-result.txt
           grep -E 'Kernel command line:|Trying to unpack rootfs|Freeing initrd|Run /init|No working init|VFS:|rootfs|RAMDISK' \
             out/coldfire-kconfig/boot/qemu-embedded.log | tail -n 40 || true
-          if grep -Eq 'Failed to execute /init|Run /init as init process|Requested init /init failed' out/coldfire-kconfig/boot/qemu-embedded.log; then
+          if grep -q 'Run /init as init process' out/coldfire-kconfig/boot/qemu-embedded.log; then
             echo 'EMBEDDED_INITRAMFS=INIT_DISCOVERED' | tee -a out/coldfire-kconfig/boot/embedded-result.txt
+            echo 'USERSPACE=NOT_QUALIFIED' | tee -a out/coldfire-kconfig/boot/embedded-result.txt
           elif grep -q 'No working init found' out/coldfire-kconfig/boot/qemu-embedded.log; then
             echo 'EMBEDDED_INITRAMFS=REACHED_INIT_LOOKUP' | tee -a out/coldfire-kconfig/boot/embedded-result.txt
           elif grep -q 'Cannot open root device' out/coldfire-kconfig/boot/qemu-embedded.log; then
@@ -253,6 +252,8 @@ jobs:
             echo 'EMBEDDED_INITRAMFS=UNKNOWN' | tee -a out/coldfire-kconfig/boot/embedded-result.txt
           fi
           tail -n 65 out/coldfire-kconfig/boot/qemu-embedded.log
+          grep -qx 'EMBEDDED_INITRAMFS=INIT_DISCOVERED' \
+            out/coldfire-kconfig/boot/embedded-result.txt
       - name: Upload discovery evidence
         if: always()
         uses: actions/upload-artifact@v4
